@@ -16,34 +16,18 @@ import edu.wpi.first.math.numbers.N{{ num }};
  *
  * @param <T> The {@link Num} this represents.
  */
-public interface Nat<T extends Num> {
+public interface Nat<T extends Num> extends Num {
   /**
-   * The number this interface represents.
+   * The number one greater than this number.
    *
-   * @return The number backing this value.
+   * @return A type representing a number one greater than this type.
    */
-  int getNum();
-
-  /**
-   * The number one greater than the number this interface represents.
-   *
-   * @return A type representing a number one greater than this value.
-   */
-  Nat<Successor<T>> inc();
+  Successor<T> inc();
 
 
 {% for num in nums %}
-  static Nat<N{{ num }}> N{{ num }}() {
+  static Nat<{% for i in range(num) %}Successor<{% endfor %}N0{% for i in range(num) %}>{% endfor %}> N{{ num }}() {
     return N{{ num }}.instance;
   }
 {% endfor %}
-
-  public static Nat<? extends Num> from(int n) {
-{% for num in nums %}
-    if (n == {{ num }}) {
-      return N{{ num }}.instance;
-    }
-{% endfor %}
-    return null;
-  }
 }

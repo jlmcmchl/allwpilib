@@ -7,9 +7,9 @@ package edu.wpi.first.math;
 /** A number expressed as a java class. */
 public interface Num {
   /**
-   * The number this is backing.
+   * The number this interface represents.
    *
-   * @return The number represented by this class.
+   * @return The number backing this value.
    */
-  public abstract int getNum();
+  int getNum();
 }

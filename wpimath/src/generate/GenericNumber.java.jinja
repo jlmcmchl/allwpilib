@@ -4,15 +4,16 @@
 
 package edu.wpi.first.math.numbers;
 
+{% if num == 0 %} 
 import edu.wpi.first.math.Nat;
-import edu.wpi.first.math.Num;
+{% endif %}
 import edu.wpi.first.math.Successor;
 
 
 /**
  * A class representing the number {{ num }}.
 */
-public final class N{{ num }} implements {% if num > 0 %} Successor<N{{num - 1}}>, Nat<Successor<N{{ num - 1 }}>> {% else %} Num, Nat<N{{num}}> {% endif %} {
+public final class N{{ num }} implements {% if num > 0 %} {% for i in range(num) %}Successor<{% endfor %}N0{% for i in range(num) %}>{% endfor %} {% else %} Nat<N0> {% endif %} {
   private N{{ num }}() {
   }
 
@@ -34,10 +35,14 @@ public final class N{{ num }} implements {% if num > 0 %} Successor<N{{num - 1}}
   /**
    * The number one greater than the number this interface represents.
    *
-   * @return A type representing a number one greater than this value.
+   * @return A type representing the number {{ num + 1 }}.
    */
   @Override
-  public Nat<Successor<N{{num}}>> inc() {
+  public {% for i in range(num + 1) %}Successor<{% endfor %}N0{% for i in range(num + 1) %}>{% endfor %} inc() {
+{% if num == 20 %}
+    return null;
+{% else %}
     return N{{num + 1}}.instance;
+{% endif %}
   }
 }

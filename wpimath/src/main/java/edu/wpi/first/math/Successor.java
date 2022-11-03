@@ -4,5 +4,4 @@
 
 package edu.wpi.first.math;
 
-public interface Successor<T> extends Num {
-}
+public interface Successor<T extends Num> extends Nat<Successor<T>> {}
