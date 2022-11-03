@@ -4,12 +4,5 @@
 
 package edu.wpi.first.math;
 
-/** A number expressed as a java class. */
-public interface Num {
-  /**
-   * The number this is backing.
-   *
-   * @return The number represented by this class.
-   */
-  public abstract int getNum();
+public interface Successor<T> extends Num {
 }

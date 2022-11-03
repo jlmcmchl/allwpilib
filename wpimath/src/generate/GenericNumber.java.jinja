@@ -6,11 +6,13 @@ package edu.wpi.first.math.numbers;
 
 import edu.wpi.first.math.Nat;
 import edu.wpi.first.math.Num;
+import edu.wpi.first.math.Successor;
+
 
 /**
  * A class representing the number {{ num }}.
 */
-public final class N{{ num }} extends Num implements Nat<N{{ num }}> {
+public final class N{{ num }} implements {% if num > 0 %} Successor<N{{num - 1}}>, Nat<Successor<N{{ num - 1 }}>> {% else %} Num, Nat<N{{num}}> {% endif %} {
   private N{{ num }}() {
   }
 
@@ -28,4 +30,14 @@ public final class N{{ num }} extends Num implements Nat<N{{ num }}> {
    * The singleton instance of this class.
   */
   public static final N{{ num }} instance = new N{{ num }}();
+
+  /**
+   * The number one greater than the number this interface represents.
+   *
+   * @return A type representing a number one greater than this value.
+   */
+  @Override
+  public Nat<Successor<N{{num}}>> inc() {
+    return N{{num + 1}}.instance;
+  }
 }
