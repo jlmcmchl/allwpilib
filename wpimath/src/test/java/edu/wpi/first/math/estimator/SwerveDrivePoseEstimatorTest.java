@@ -44,6 +44,7 @@ class SwerveDrivePoseEstimatorTest {
             new Rotation2d(),
             new Pose2d(),
             new SwerveModulePosition[] {fl, fr, bl, br},
+            kinematics,
             VecBuilder.fill(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1),
             VecBuilder.fill(0.005, 0.005, 0.005, 0.005, 0.005),
             VecBuilder.fill(0.1, 0.1, 0.1));
@@ -137,6 +138,13 @@ class SwerveDrivePoseEstimatorTest {
 
   @Test
   void testAccuracyFacingXAxis() {
+    var kinematics =
+        new SwerveDriveKinematics(
+            new Translation2d(1, 1),
+            new Translation2d(1, -1),
+            new Translation2d(-1, -1),
+            new Translation2d(-1, 1));
+
     var fl = new SwerveModulePosition();
     var fr = new SwerveModulePosition();
     var bl = new SwerveModulePosition();
@@ -149,6 +157,7 @@ class SwerveDrivePoseEstimatorTest {
             new Rotation2d(),
             new Pose2d(),
             new SwerveModulePosition[] {fl, fr, bl, br},
+            kinematics,
             VecBuilder.fill(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1),
             VecBuilder.fill(0.005, 0.005, 0.005, 0.005, 0.005),
             VecBuilder.fill(0.1, 0.1, 0.1));

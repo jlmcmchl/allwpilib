@@ -12,6 +12,7 @@ import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.interpolation.TimeInterpolatableBuffer;
+import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
@@ -32,7 +33,8 @@ import java.util.function.BiConsumer;
  * <p>{@link SwerveDrivePoseEstimator#update} should be called every robot loop. If your loops are
  * faster or slower than the default of 20 ms, then you should change the nominal delta time using
  * the secondary constructor: {@link SwerveDrivePoseEstimator#SwerveDrivePoseEstimator(Nat, Nat,
- * Rotation2d, Pose2d, SwerveModulePosition[], Matrix, Matrix, Matrix, double)}.
+ * Rotation2d, Pose2d, SwerveModulePosition[], SwerveDriveKinematics, Matrix, Matrix, Matrix,
+ * double)}.
  *
  * <p>{@link SwerveDrivePoseEstimator#addVisionMeasurement} can be called as infrequently as you
  * want; if you never call it, then this class will behave mostly like regular encoder odometry.
@@ -52,14 +54,15 @@ import java.util.function.BiConsumer;
  */
 public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
   private final UnscentedKalmanFilter<States, N3, Outputs> m_observer;
+  private final SwerveDriveKinematics m_kinematics;
   private final BiConsumer<Matrix<N3, N1>, Matrix<N3, N1>> m_visionCorrect;
   private final TimeInterpolatableBuffer<Pose2d> m_poseBuffer;
 
   private final Nat<States> m_states;
   private final Nat<Outputs> m_outputs;
 
-  private final double m_nominalDt; // Seconds
-  private double m_prevTimeSeconds = -1.0;
+  // private final double m_nominalDt; // Seconds
+  // private double m_prevTimeSeconds = -1.0;
 
   private Rotation2d m_gyroOffset;
   private Rotation2d m_previousAngle;
@@ -74,6 +77,7 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
    * @param gyroAngle The current gyro angle.
    * @param initialPoseMeters The starting pose estimate.
    * @param modulePositions The current distance measurements and rotations of the swerve modules.
+   * @param kinematics A correctly-configured kinematics object for your drivetrain.
    * @param stateStdDevs Standard deviations of model states. Increase these numbers to trust your
    *     model's state estimates less. This matrix is in the form [x, y, theta, s_0, ... s_n]ᵀ, with
    *     units in meters and radians, then meters.
@@ -90,6 +94,7 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
       Rotation2d gyroAngle,
       Pose2d initialPoseMeters,
       SwerveModulePosition[] modulePositions,
+      SwerveDriveKinematics kinematics,
       Matrix<States, N1> stateStdDevs,
       Matrix<Outputs, N1> localMeasurementStdDevs,
       Matrix<N3, N1> visionMeasurementStdDevs) {
@@ -99,6 +104,7 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
         gyroAngle,
         initialPoseMeters,
         modulePositions,
+        kinematics,
         stateStdDevs,
         localMeasurementStdDevs,
         visionMeasurementStdDevs,
@@ -113,6 +119,8 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
    * @param gyroAngle The current gyro angle.
    * @param initialPoseMeters The starting pose estimate.
    * @param modulePositions The current distance measurements and rotations of the swerve modules.
+   *     SwerveDriveKinematics kinematics,
+   * @param kinematics A correctly-configured kinematics object for your drivetrain.
    * @param stateStdDevs Standard deviations of model states. Increase these numbers to trust your
    *     model's state estimates less. This matrix is in the form [x, y, theta, s_0, ... s_n]ᵀ, with
    *     units in meters and radians, then meters.
@@ -130,6 +138,7 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
       Rotation2d gyroAngle,
       Pose2d initialPoseMeters,
       SwerveModulePosition[] modulePositions,
+      SwerveDriveKinematics kinematics,
       Matrix<States, N1> stateStdDevs,
       Matrix<Outputs, N1> localMeasurementStdDevs,
       Matrix<N3, N1> visionMeasurementStdDevs,
@@ -153,7 +162,7 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
               outputs.getNum(), modulePositions.length));
     }
 
-    m_nominalDt = nominalDtSeconds;
+    // m_nominalDt = nominalDtSeconds;
 
     m_observer =
         new UnscentedKalmanFilter<>(
@@ -175,7 +184,8 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
             AngleStatistics.angleResidual(2),
             AngleStatistics.angleResidual(0),
             AngleStatistics.angleAdd(2),
-            m_nominalDt);
+            nominalDtSeconds);
+    m_kinematics = kinematics;
     m_poseBuffer = TimeInterpolatableBuffer.createBuffer(1.5);
 
     // Initialize vision R
@@ -253,7 +263,7 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
 
     m_observer.setXhat(xhat);
 
-    m_prevTimeSeconds = -1;
+    // m_prevTimeSeconds = -1;
 
     m_gyroOffset = getEstimatedPosition().getRotation().minus(gyroAngle);
     m_previousAngle = poseMeters.getRotation();
@@ -365,14 +375,13 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
       localY.set(index, 0, modulePositions[index - 1].distanceMeters);
     }
 
-    double dt = m_prevTimeSeconds >= 0 ? currentTimeSeconds - m_prevTimeSeconds : m_nominalDt;
-    m_prevTimeSeconds = currentTimeSeconds;
-    var omega = angle.minus(m_previousAngle).getRadians() / dt;
+    var twist = m_kinematics.toTwist2d(modulePositions);
+
+    // m_prevTimeSeconds = currentTimeSeconds;
+    var u = VecBuilder.fill(twist.dx, twist.dy, angle.minus(m_previousAngle).getRadians());
     m_previousAngle = angle;
 
-    var u = VecBuilder.fill(0, 0, omega);
-
-    m_observer.predict(u, dt);
+    m_observer.predict(u, 1);
     m_observer.correct(u, localY);
 
     return getEstimatedPosition();
