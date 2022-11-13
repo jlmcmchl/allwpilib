@@ -11,6 +11,7 @@ import edu.wpi.first.math.StateSpaceUtil;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.interpolation.TimeInterpolatableBuffer;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
@@ -376,10 +377,13 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
     }
 
     var twist = m_kinematics.toTwist2d(modulePositions);
+    var transform = new Transform2d(getEstimatedPosition(), getEstimatedPosition().exp(twist));
 
     double dt = m_prevTimeSeconds >= 0 ? currentTimeSeconds - m_prevTimeSeconds : m_nominalDt;
     m_prevTimeSeconds = currentTimeSeconds;
-    var u = VecBuilder.fill(twist.dx, twist.dy, angle.minus(m_previousAngle).getRadians());
+    var u =
+        VecBuilder.fill(
+            transform.getX(), transform.getY(), angle.minus(m_previousAngle).getRadians());
     // var u = VecBuilder.fill(twist.dx, twist.dy, twist.dtheta);
     m_previousAngle = angle;
 
