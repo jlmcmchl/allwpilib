@@ -38,14 +38,12 @@ class SwerveDrivePoseEstimatorTest {
     var br = new SwerveModulePosition();
 
     var estimator =
-        new SwerveDrivePoseEstimator<N7, N7, N5>(
-            Nat.N7(),
+        new SwerveDrivePoseEstimator<N7, N5>(
             Nat.N7(),
             Nat.N5(),
             new Rotation2d(),
             new Pose2d(),
             new SwerveModulePosition[] {fl, fr, bl, br},
-            kinematics,
             VecBuilder.fill(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1),
             VecBuilder.fill(0.005, 0.005, 0.005, 0.005, 0.005),
             VecBuilder.fill(0.1, 0.1, 0.1));
@@ -120,7 +118,6 @@ class SwerveDrivePoseEstimatorTest {
                   .poseMeters
                   .getRotation()
                   .plus(new Rotation2d(rand.nextGaussian() * 0.05)),
-              moduleStates,
               new SwerveModulePosition[] {fl, fr, bl, br});
 
       double error =
@@ -140,27 +137,18 @@ class SwerveDrivePoseEstimatorTest {
 
   @Test
   void testAccuracyFacingXAxis() {
-    var kinematics =
-        new SwerveDriveKinematics(
-            new Translation2d(1, 1),
-            new Translation2d(1, -1),
-            new Translation2d(-1, -1),
-            new Translation2d(-1, 1));
-
     var fl = new SwerveModulePosition();
     var fr = new SwerveModulePosition();
     var bl = new SwerveModulePosition();
     var br = new SwerveModulePosition();
 
     var estimator =
-        new SwerveDrivePoseEstimator<N7, N7, N5>(
-            Nat.N7(),
+        new SwerveDrivePoseEstimator<N7, N5>(
             Nat.N7(),
             Nat.N5(),
             new Rotation2d(),
             new Pose2d(),
             new SwerveModulePosition[] {fl, fr, bl, br},
-            kinematics,
             VecBuilder.fill(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1),
             VecBuilder.fill(0.005, 0.005, 0.005, 0.005, 0.005),
             VecBuilder.fill(0.1, 0.1, 0.1));
@@ -206,19 +194,6 @@ class SwerveDrivePoseEstimatorTest {
         lastVisionUpdateTime = t;
       }
 
-      var moduleStates =
-          kinematics.toSwerveModuleStates(
-              new ChassisSpeeds(
-                  groundTruthState.velocityMetersPerSecond
-                      * groundTruthState.poseMeters.getRotation().getCos(),
-                  groundTruthState.velocityMetersPerSecond
-                      * groundTruthState.poseMeters.getRotation().getSin(),
-                  0.0));
-      for (var moduleState : moduleStates) {
-        moduleState.angle = moduleState.angle.plus(new Rotation2d(rand.nextGaussian() * 0.005));
-        moduleState.speedMetersPerSecond += rand.nextGaussian() * 0.1;
-      }
-
       fl.distanceMeters +=
           groundTruthState.velocityMetersPerSecond * dt
               + 0.5 * groundTruthState.accelerationMetersPerSecondSq * dt * dt;
@@ -241,7 +216,6 @@ class SwerveDrivePoseEstimatorTest {
           estimator.updateWithTime(
               t,
               new Rotation2d(rand.nextGaussian() * 0.05),
-              moduleStates,
               new SwerveModulePosition[] {fl, fr, bl, br});
 
       double error =
