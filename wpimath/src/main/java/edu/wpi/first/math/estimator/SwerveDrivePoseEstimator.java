@@ -61,8 +61,8 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
   private final Nat<States> m_states;
   private final Nat<Outputs> m_outputs;
 
-  // private final double m_nominalDt; // Seconds
-  // private double m_prevTimeSeconds = -1.0;
+  private final double m_nominalDt; // Seconds
+  private double m_prevTimeSeconds = -1.0;
 
   private Rotation2d m_gyroOffset;
   private Rotation2d m_previousAngle;
@@ -162,7 +162,7 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
               outputs.getNum(), modulePositions.length));
     }
 
-    // m_nominalDt = nominalDtSeconds;
+    m_nominalDt = nominalDtSeconds;
 
     m_observer =
         new UnscentedKalmanFilter<>(
@@ -184,7 +184,7 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
             AngleStatistics.angleResidual(2),
             AngleStatistics.angleResidual(0),
             AngleStatistics.angleAdd(2),
-            nominalDtSeconds);
+            m_nominalDt);
     m_kinematics = kinematics;
     m_poseBuffer = TimeInterpolatableBuffer.createBuffer(1.5);
 
@@ -263,7 +263,7 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
 
     m_observer.setXhat(xhat);
 
-    // m_prevTimeSeconds = -1;
+    m_prevTimeSeconds = -1;
 
     m_gyroOffset = getEstimatedPosition().getRotation().minus(gyroAngle);
     m_previousAngle = poseMeters.getRotation();
@@ -377,11 +377,13 @@ public class SwerveDrivePoseEstimator<States extends Num, Outputs extends Num> {
 
     var twist = m_kinematics.toTwist2d(modulePositions);
 
-    // m_prevTimeSeconds = currentTimeSeconds;
+    double dt = m_prevTimeSeconds >= 0 ? currentTimeSeconds - m_prevTimeSeconds : m_nominalDt;
+    m_prevTimeSeconds = currentTimeSeconds;
     var u = VecBuilder.fill(twist.dx, twist.dy, angle.minus(m_previousAngle).getRadians());
+    // var u = VecBuilder.fill(twist.dx, twist.dy, twist.dtheta);
     m_previousAngle = angle;
 
-    m_observer.predict(u, 1);
+    m_observer.predict(u, dt);
     m_observer.correct(u, localY);
 
     return getEstimatedPosition();
