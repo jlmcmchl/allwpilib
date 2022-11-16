@@ -7,9 +7,10 @@ package edu.wpi.first.math.estimator;
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.Nat;
 import edu.wpi.first.math.Num;
-import edu.wpi.first.math.StateSpaceUtil;
+import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Twist2d;
 import edu.wpi.first.math.interpolation.TimeInterpolatableBuffer;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
@@ -131,7 +132,7 @@ public class SwerveDrivePoseEstimator {
             Nat.N3(),
             new LinearSystem<>(
               Matrix.eye(Nat.N3()), 
-              Matrix.eye(Nat.N3()), 
+              new Matrix<>(Nat.N3(), Nat.N3()),
               Matrix.eye(Nat.N3()), 
               new Matrix<>(Nat.N3(), Nat.N3())),
             m_stateStdDevs,
@@ -196,21 +197,21 @@ public class SwerveDrivePoseEstimator {
      * multiplication of pose by K (twist for interpolation?). currrent = prev + K * (measurement -
      * prev) current = prev + K * measurement - K * prev) current = (1 - K) * prev + K * measurement
      */
+
+    
     var sample = m_poseBuffer.getSample(timestampSeconds);
 
     if (sample.isEmpty()) {
       return;
     }
 
-    var relativeMeasurement = visionRobotPoseMeters.relativeTo(sample.get());
+    var twist = visionRobotPoseMeters.log(sample.get());
 
-    var one_minus_k = Matrix.eye(Nat.N3()).minus(m_visionK);
+    var k_times_twist = m_visionK.times(VecBuilder.fill(twist.dx, twist.dy, twist.dtheta));
 
-    var left = one_minus_k.times(StateSpaceUtil.poseTo3dVector(getEstimatedPosition()));
-    var right = m_visionK.times(StateSpaceUtil.poseTo3dVector(relativeMeasurement));
+    var scaled_twist = new Twist2d(k_times_twist.get(0, 0), k_times_twist.get(1, 0), k_times_twist.get(2, 0));
 
-    var pose_vec = left.plus(right);
-    var est_pose = new Pose2d(pose_vec.get(0, 0), pose_vec.get(1, 0), new Rotation2d(pose_vec.get(2, 0)));
+    var est_pose = getEstimatedPosition().exp(scaled_twist);
 
     m_odometry.resetPosition(est_pose, m_previousGyroAngle, m_prevModulePositions);
   }
