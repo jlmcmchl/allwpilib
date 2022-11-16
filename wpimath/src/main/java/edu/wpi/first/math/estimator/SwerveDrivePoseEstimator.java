@@ -8,17 +8,16 @@ import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.Nat;
 import edu.wpi.first.math.Num;
 import edu.wpi.first.math.StateSpaceUtil;
+import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.interpolation.TimeInterpolatableBuffer;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
-import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
+import edu.wpi.first.math.system.LinearSystem;
 import edu.wpi.first.util.WPIUtilJNI;
-import java.util.function.BiConsumer;
 
 /**
  * This class wraps an {@link UnscentedKalmanFilter Unscented Kalman Filter} to fuse
@@ -53,15 +52,12 @@ import java.util.function.BiConsumer;
  * heading; or <strong> y = [theta, s_0, ..., s_n]ᵀ </strong> containing gyro heading, followed by
  * the distance travelled by each wheel.
  */
-public class SwerveDrivePoseEstimator<States extends Num, Inputs extends Num, Outputs extends Num> {
-  private final UnscentedKalmanFilter<States, Inputs, Outputs> m_observer;
+public class SwerveDrivePoseEstimator {
   private final SwerveDriveKinematics m_kinematics;
-  private final BiConsumer<Matrix<Inputs, N1>, Matrix<N3, N1>> m_visionCorrect;
   private final TimeInterpolatableBuffer<Pose2d> m_poseBuffer;
 
-  private final Nat<States> m_states;
-  private final Nat<Inputs> m_inputs;
-  private final Nat<Outputs> m_outputs;
+  SwerveModulePosition[] m_prevModulePositions;
+  private final int m_numModules;
 
   private final double m_nominalDt; // Seconds
   private double m_prevTimeSeconds = -1.0;
@@ -69,59 +65,15 @@ public class SwerveDrivePoseEstimator<States extends Num, Inputs extends Num, Ou
   private Rotation2d m_gyroOffset;
   private Rotation2d m_previousAngle;
 
-  private Matrix<N3, N3> m_visionContR;
+  private final Matrix<N3, N1> m_stateStdDevs;
+
+  private final KalmanFilter<N3, N3, N3> m_observer;
+
+  private Matrix<N3, N3> m_visionK;
 
   /**
    * Constructs a SwerveDrivePoseEstimator.
    *
-   * @param states The size of the state vector.
-   * @param inputs The size of the input vector.
-   * @param outputs The size of the outputs vector.
-   * @param gyroAngle The current gyro angle.
-   * @param initialPoseMeters The starting pose estimate.
-   * @param modulePositions The current distance measurements and rotations of the swerve modules.
-   * @param kinematics A correctly-configured kinematics object for your drivetrain.
-   * @param stateStdDevs Standard deviations of model states. Increase these numbers to trust your
-   *     model's state estimates less. This matrix is in the form [x, y, theta, s_0, ... s_n]ᵀ, with
-   *     units in meters and radians, then meters.
-   * @param localMeasurementStdDevs Standard deviations of the encoder and gyro measurements.
-   *     Increase these numbers to trust sensor readings from encoders and gyros less. This matrix
-   *     is in the form [theta, s_0, ... s_n], with units in radians followed by meters.
-   * @param visionMeasurementStdDevs Standard deviations of the vision measurements. Increase these
-   *     numbers to trust global measurements from vision less. This matrix is in the form [x, y,
-   *     theta]ᵀ, with units in meters and radians.
-   */
-  public SwerveDrivePoseEstimator(
-      Nat<States> states,
-      Nat<Inputs> inputs,
-      Nat<Outputs> outputs,
-      Rotation2d gyroAngle,
-      SwerveModulePosition[] modulePositions,
-      Pose2d initialPoseMeters,
-      SwerveDriveKinematics kinematics,
-      Matrix<States, N1> stateStdDevs,
-      Matrix<Outputs, N1> localMeasurementStdDevs,
-      Matrix<N3, N1> visionMeasurementStdDevs) {
-    this(
-        states,
-        inputs,
-        outputs,
-        gyroAngle,
-        modulePositions,
-        initialPoseMeters,
-        kinematics,
-        stateStdDevs,
-        localMeasurementStdDevs,
-        visionMeasurementStdDevs,
-        0.02);
-  }
-
-  /**
-   * Constructs a SwerveDrivePoseEstimator.
-   *
-   * @param states The size of the state vector.
-   * @param inputs The size of the input vector.
-   * @param outputs The size of the outputs vector.
    * @param gyroAngle The current gyro angle.
    * @param modulePositions The current distance measurements and rotations of the swerve modules.
    * @param initialPoseMeters The starting pose estimate.
@@ -138,94 +90,54 @@ public class SwerveDrivePoseEstimator<States extends Num, Inputs extends Num, Ou
    * @param nominalDtSeconds The time in seconds between each robot loop.
    */
   public SwerveDrivePoseEstimator(
-      Nat<States> states,
-      Nat<Inputs> inputs,
-      Nat<Outputs> outputs,
       Rotation2d gyroAngle,
       SwerveModulePosition[] modulePositions,
       Pose2d initialPoseMeters,
       SwerveDriveKinematics kinematics,
-      Matrix<States, N1> stateStdDevs,
-      Matrix<Outputs, N1> localMeasurementStdDevs,
+      Matrix<N3, N1> stateStdDevs,
+      Matrix<N1, N1> localMeasurementStdDevs,
       Matrix<N3, N1> visionMeasurementStdDevs,
       double nominalDtSeconds) {
-    this.m_states = states;
-    this.m_inputs = inputs;
-    this.m_outputs = outputs;
-
-    if (states.getNum() != modulePositions.length + 3) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Number of states (%s) must be 3 + "
-                  + "the number of modules provided in constructor (%s).",
-              states.getNum(), modulePositions.length));
-    }
-
-    if (inputs.getNum() != modulePositions.length + 3) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Number of inputs (%s) must be 3 + "
-                  + "the number of modules provided in constructor (%s).",
-              inputs.getNum(), modulePositions.length));
-    }
-
-    if (outputs.getNum() != modulePositions.length + 1) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Number of outputs (%s) must be 3 + "
-                  + "the number of modules provided in constructor (%s).",
-              outputs.getNum(), modulePositions.length));
-    }
 
     m_nominalDt = nominalDtSeconds;
 
-    m_observer =
-        new UnscentedKalmanFilter<>(
-            states,
-            outputs,
-            (x, u) -> u.block(states.getNum(), 1, 0, 0),
-            (x, u) -> x.block(states.getNum() - 2, 1, 2, 0),
-            stateStdDevs,
-            localMeasurementStdDevs,
-            AngleStatistics.angleMean(2),
-            AngleStatistics.angleMean(0),
-            AngleStatistics.angleResidual(2),
-            AngleStatistics.angleResidual(0),
-            AngleStatistics.angleAdd(2),
-            m_nominalDt);
     m_kinematics = kinematics;
     m_poseBuffer = TimeInterpolatableBuffer.createBuffer(1.5);
 
-    // Initialize vision R
+    m_stateStdDevs = stateStdDevs;
+    m_numModules = modulePositions.length;
+
+    var extendedlocalMeasurementStdDevs = VecBuilder.fill(10, 10, localMeasurementStdDevs.get(0, 0));
+
+    // Initialize vision K
     setVisionMeasurementStdDevs(visionMeasurementStdDevs);
 
-    m_visionCorrect =
-        (u, y) ->
-            m_observer.correct(
-                Nat.N3(),
-                u,
-                y,
-                (x, u1) -> x.block(3, 1, 0, 0),
-                m_visionContR,
-                AngleStatistics.angleMean(2),
-                AngleStatistics.angleResidual(2),
-                AngleStatistics.angleResidual(2),
-                AngleStatistics.angleAdd(2));
+    m_observer =
+          new KalmanFilter<>(
+            Nat.N3(),
+            Nat.N3(),
+            new LinearSystem<>(
+              Matrix.eye(Nat.N3()), 
+              Matrix.eye(Nat.N3()), 
+              Matrix.eye(Nat.N3()), 
+              new Matrix<>(Nat.N3(), Nat.N3())),
+            m_stateStdDevs,
+            extendedlocalMeasurementStdDevs,
+            nominalDtSeconds);
 
     m_gyroOffset = initialPoseMeters.getRotation().minus(gyroAngle);
     m_previousAngle = initialPoseMeters.getRotation();
 
-    var poseVec = StateSpaceUtil.poseTo3dVector(initialPoseMeters);
-    Matrix<States, N1> xhat = new Matrix<States, N1>(states, Nat.N1());
-    xhat.set(0, 0, poseVec.get(0, 0));
-    xhat.set(1, 0, poseVec.get(1, 0));
-    xhat.set(2, 0, poseVec.get(2, 0));
+    m_prevModulePositions = new SwerveModulePosition[m_numModules];
 
-    for (int index = 3; index < states.getNum(); index++) {
-      xhat.set(index, 0, modulePositions[index - 3].distanceMeters);
+    for (int i = 0; i < m_numModules; i++) {
+      m_prevModulePositions[i] =
+          new SwerveModulePosition(
+              modulePositions[i].distanceMeters,
+              modulePositions[i].angle);
     }
 
-    m_observer.setXhat(xhat);
+    m_observer.setXhat(StateSpaceUtil.poseTo3dVector(initialPoseMeters));
   }
 
   /**
@@ -238,7 +150,20 @@ public class SwerveDrivePoseEstimator<States extends Num, Inputs extends Num, Ou
    *     theta]ᵀ, with units in meters and radians.
    */
   public void setVisionMeasurementStdDevs(Matrix<N3, N1> visionMeasurementStdDevs) {
-    m_visionContR = StateSpaceUtil.makeCovarianceMatrix(Nat.N3(), visionMeasurementStdDevs);
+    var visionObserver =
+        new KalmanFilter<>(
+            Nat.N3(),
+            Nat.N3(),
+            new LinearSystem<>(
+              Matrix.eye(Nat.N3()), 
+              Matrix.eye(Nat.N3()), 
+              Matrix.eye(Nat.N3()), 
+              new Matrix<>(Nat.N3(), Nat.N3())),
+            m_stateStdDevs,
+            visionMeasurementStdDevs,
+            m_nominalDt);
+
+    m_visionK = visionObserver.getK();
   }
 
   /**
@@ -257,17 +182,7 @@ public class SwerveDrivePoseEstimator<States extends Num, Inputs extends Num, Ou
     m_observer.reset();
     m_poseBuffer.clear();
 
-    var poseVec = StateSpaceUtil.poseTo3dVector(poseMeters);
-    Matrix<States, N1> xhat = new Matrix<States, N1>(m_states, Nat.N1());
-    xhat.set(0, 0, poseVec.get(0, 0));
-    xhat.set(1, 0, poseVec.get(1, 0));
-    xhat.set(2, 0, poseVec.get(2, 0));
-
-    for (int index = 3; index < m_states.getNum(); index++) {
-      xhat.set(index, 0, modulePositions[index - 3].distanceMeters);
-    }
-
-    m_observer.setXhat(xhat);
+    m_observer.setXhat(StateSpaceUtil.poseTo3dVector(poseMeters));
 
     m_prevTimeSeconds = -1;
 
@@ -304,13 +219,30 @@ public class SwerveDrivePoseEstimator<States extends Num, Inputs extends Num, Ou
    *     Timer.getFPGATimestamp as your time source or sync the epochs.
    */
   public void addVisionMeasurement(Pose2d visionRobotPoseMeters, double timestampSeconds) {
+    /**
+     * @Jordan - 3538 Mentor, CSA I got a report of instability in the pose estimator UKF again in
+     * the PhotonVision discord, so I have an idea: since the state and measurement models are all
+     * linear, we could use SwerveDriveOdometry internally for predictions, compute a steady-state K
+     * in the constructor via the KalmanFilter class, and do the vision correction manually. The
+     * correction would be current state = previous state + K *
+     * actualPoseMeasurement.RelativeTo(predictedPoseMeasurement) for some definition of
+     * multiplication of pose by K (twist for interpolation?). currrent = prev + K * (measurement -
+     * prev) current = prev + K * measurement - K * prev) current = (1 - K) * prev + K * measurement
+     */
     var sample = m_poseBuffer.getSample(timestampSeconds);
-    if (sample.isPresent()) {
-      m_visionCorrect.accept(
-          new Matrix<Inputs, N1>(m_inputs, Nat.N1()),
-          StateSpaceUtil.poseTo3dVector(
-              getEstimatedPosition().transformBy(visionRobotPoseMeters.minus(sample.get()))));
+
+    if (sample.isEmpty()) {
+      return;
     }
+
+    var relativeMeasurement = visionRobotPoseMeters.relativeTo(sample.get());
+
+    var one_minus_k = Matrix.eye(Nat.N3()).minus(m_visionK);
+
+    var left = one_minus_k.times(StateSpaceUtil.poseTo3dVector(getEstimatedPosition()));
+    var right = m_visionK.times(StateSpaceUtil.poseTo3dVector(relativeMeasurement));
+
+    m_observer.setXhat(left.plus(right));
   }
 
   /**
@@ -352,15 +284,11 @@ public class SwerveDrivePoseEstimator<States extends Num, Inputs extends Num, Ou
    * class.
    *
    * @param gyroAngle The current gyro angle.
-   * @param moduleStates The current velocities and rotations of the swerve modules.
    * @param modulePositions The current distance measurements and rotations of the swerve modules.
    * @return The estimated pose of the robot in meters.
    */
-  public Pose2d update(
-      Rotation2d gyroAngle,
-      SwerveModuleState[] moduleStates,
-      SwerveModulePosition[] modulePositions) {
-    return updateWithTime(WPIUtilJNI.now() * 1.0e-6, gyroAngle, moduleStates, modulePositions);
+  public Pose2d update(Rotation2d gyroAngle, SwerveModulePosition[] modulePositions) {
+    return updateWithTime(WPIUtilJNI.now() * 1.0e-6, gyroAngle, modulePositions);
   }
 
   /**
@@ -375,40 +303,46 @@ public class SwerveDrivePoseEstimator<States extends Num, Inputs extends Num, Ou
    * @return The estimated pose of the robot in meters.
    */
   public Pose2d updateWithTime(
-      double currentTimeSeconds,
-      Rotation2d gyroAngle,
-      SwerveModuleState[] moduleStates,
-      SwerveModulePosition[] modulePositions) {
-    double dt = m_prevTimeSeconds >= 0 ? currentTimeSeconds - m_prevTimeSeconds : m_nominalDt;
-    m_prevTimeSeconds = currentTimeSeconds;
-
-    var angle = gyroAngle.plus(m_gyroOffset);
-    var omega = angle.minus(m_previousAngle).getRadians() / dt;
-
-    var chassisSpeeds = m_kinematics.toChassisSpeeds(moduleStates);
-    var fieldRelativeVelocities =
-        new Translation2d(chassisSpeeds.vxMetersPerSecond, chassisSpeeds.vyMetersPerSecond)
-            .rotateBy(angle);
-
-    var u = new Matrix<Inputs, N1>(m_inputs, Nat.N1());
-
-    u.set(0, 0, fieldRelativeVelocities.getX());
-    u.set(1, 0, fieldRelativeVelocities.getY());
-    u.set(2, 0, omega);
-    for (int index = 3; index < m_inputs.getNum(); index++) {
-      u.set(index, 0, moduleStates[index - 3].speedMetersPerSecond);
-    }
-
-    m_previousAngle = angle;
-
-    var localY = new Matrix<Outputs, N1>(m_outputs, Nat.N1());
-    localY.set(0, 0, angle.getRadians());
-    for (int index = 1; index < m_outputs.getNum(); index++) {
-      localY.set(index, 0, modulePositions[index - 1].distanceMeters);
+      double currentTimeSeconds, Rotation2d gyroAngle, SwerveModulePosition[] modulePositions) {
+    if (modulePositions.length != m_numModules) {
+      throw new IllegalArgumentException(
+          "Number of modules is not consistent with number of wheel locations provided in "
+              + "constructor");
     }
 
     m_poseBuffer.addSample(currentTimeSeconds, getEstimatedPosition());
+
+    double dt = m_prevTimeSeconds >= 0 ? currentTimeSeconds - m_prevTimeSeconds : m_nominalDt;
+    m_prevTimeSeconds = currentTimeSeconds;
+
+    var moduleDeltas = new SwerveModulePosition[m_numModules];
+
+    for (int i = 0; i < m_numModules; i++) {
+      moduleDeltas[i] =
+          new SwerveModulePosition(
+              modulePositions[i].distanceMeters - m_prevModulePositions[i].distanceMeters,
+              modulePositions[i].angle);
+      m_prevModulePositions[i].distanceMeters = modulePositions[i].distanceMeters;
+    }
+
+    var twist = m_kinematics.toTwist2d(moduleDeltas);
+
+    var angle = gyroAngle.plus(m_gyroOffset);
+    twist.dtheta = angle.minus(m_previousAngle).getRadians();
+    m_previousAngle = angle;
+
+    var previousPose = getEstimatedPosition();
+    var currentPose = previousPose.exp(twist);
+    var delta = currentPose.minus(previousPose);
+
+    var u = VecBuilder.fill(delta.getX(), delta.getY(), delta.getRotation().getRadians());
+
     m_observer.predict(u, dt);
+
+    var est_pose = getEstimatedPosition();
+
+    var localY = VecBuilder.fill(est_pose.getX(), est_pose.getY(), angle.getRadians());
+
     m_observer.correct(u, localY);
 
     return getEstimatedPosition();

@@ -6,7 +6,6 @@ package edu.wpi.first.math.estimator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import edu.wpi.first.math.Nat;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -14,8 +13,6 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
-import edu.wpi.first.math.numbers.N5;
-import edu.wpi.first.math.numbers.N7;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
 import edu.wpi.first.math.trajectory.TrajectoryGenerator;
 import java.util.List;
@@ -38,17 +35,15 @@ class SwerveDrivePoseEstimatorTest {
     var br = new SwerveModulePosition();
 
     var estimator =
-        new SwerveDrivePoseEstimator<N7, N7, N5>(
-            Nat.N7(),
-            Nat.N7(),
-            Nat.N5(),
+        new SwerveDrivePoseEstimator(
             new Rotation2d(),
             new SwerveModulePosition[] {fl, fr, bl, br},
             new Pose2d(),
             kinematics,
-            VecBuilder.fill(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1),
-            VecBuilder.fill(0.005, 0.005, 0.005, 0.005, 0.005),
-            VecBuilder.fill(0.1, 0.1, 0.1));
+            VecBuilder.fill(0.1, 0.1, 0.1),
+            VecBuilder.fill(0.005),
+            VecBuilder.fill(0.1, 0.1, 0.1),
+            0.02);
 
     var trajectory =
         TrajectoryGenerator.generateTrajectory(
@@ -120,7 +115,6 @@ class SwerveDrivePoseEstimatorTest {
                   .poseMeters
                   .getRotation()
                   .plus(new Rotation2d(rand.nextGaussian() * 0.05)),
-              moduleStates,
               new SwerveModulePosition[] {fl, fr, bl, br});
 
       double error =
@@ -153,17 +147,15 @@ class SwerveDrivePoseEstimatorTest {
     var br = new SwerveModulePosition();
 
     var estimator =
-        new SwerveDrivePoseEstimator<N7, N7, N5>(
-            Nat.N7(),
-            Nat.N7(),
-            Nat.N5(),
+        new SwerveDrivePoseEstimator(
             new Rotation2d(),
             new SwerveModulePosition[] {fl, fr, bl, br},
             new Pose2d(),
             kinematics,
-            VecBuilder.fill(0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1),
-            VecBuilder.fill(0.005, 0.005, 0.005, 0.005, 0.005),
-            VecBuilder.fill(0.1, 0.1, 0.1));
+            VecBuilder.fill(0.1, 0.1, 0.1),
+            VecBuilder.fill(0.005),
+            VecBuilder.fill(0.1, 0.1, 0.1),
+            0.02);
 
     var trajectory =
         TrajectoryGenerator.generateTrajectory(
@@ -241,7 +233,6 @@ class SwerveDrivePoseEstimatorTest {
           estimator.updateWithTime(
               t,
               new Rotation2d(rand.nextGaussian() * 0.05),
-              moduleStates,
               new SwerveModulePosition[] {fl, fr, bl, br});
 
       double error =
