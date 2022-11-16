@@ -205,7 +205,7 @@ public class SwerveDrivePoseEstimator {
       return;
     }
 
-    var twist = visionRobotPoseMeters.log(sample.get());
+    var twist = sample.get().log(visionRobotPoseMeters);
 
     var k_times_twist = m_visionK.times(VecBuilder.fill(twist.dx, twist.dy, twist.dtheta));
 
