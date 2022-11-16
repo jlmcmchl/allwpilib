@@ -8,11 +8,11 @@ import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.Nat;
 import edu.wpi.first.math.Num;
 import edu.wpi.first.math.StateSpaceUtil;
-import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.interpolation.TimeInterpolatableBuffer;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
+import edu.wpi.first.math.kinematics.SwerveDriveOdometry;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
@@ -53,23 +53,20 @@ import edu.wpi.first.util.WPIUtilJNI;
  * the distance travelled by each wheel.
  */
 public class SwerveDrivePoseEstimator {
-  private final SwerveDriveKinematics m_kinematics;
+  private final SwerveDriveOdometry m_odometry;
   private final TimeInterpolatableBuffer<Pose2d> m_poseBuffer;
 
-  SwerveModulePosition[] m_prevModulePositions;
+  private SwerveModulePosition[] m_prevModulePositions;
   private final int m_numModules;
 
   private final double m_nominalDt; // Seconds
-  private double m_prevTimeSeconds = -1.0;
 
-  private Rotation2d m_gyroOffset;
-  private Rotation2d m_previousAngle;
+  private Rotation2d m_previousGyroAngle;
 
   private final Matrix<N3, N1> m_stateStdDevs;
 
-  private final KalmanFilter<N3, N3, N3> m_observer;
-
   private Matrix<N3, N3> m_visionK;
+
 
   /**
    * Constructs a SwerveDrivePoseEstimator.
@@ -95,49 +92,27 @@ public class SwerveDrivePoseEstimator {
       Pose2d initialPoseMeters,
       SwerveDriveKinematics kinematics,
       Matrix<N3, N1> stateStdDevs,
-      Matrix<N1, N1> localMeasurementStdDevs,
       Matrix<N3, N1> visionMeasurementStdDevs,
       double nominalDtSeconds) {
 
     m_nominalDt = nominalDtSeconds;
 
-    m_kinematics = kinematics;
+    m_previousGyroAngle = gyroAngle;
+    m_prevModulePositions = new SwerveModulePosition[m_numModules];
+    for (int i = 0; i < m_numModules; i++) {
+      m_prevModulePositions[i] = new SwerveModulePosition(modulePositions[i].distanceMeters, null);
+    }
+
+
     m_poseBuffer = TimeInterpolatableBuffer.createBuffer(1.5);
 
     m_stateStdDevs = stateStdDevs;
     m_numModules = modulePositions.length;
 
-    var extendedlocalMeasurementStdDevs = VecBuilder.fill(10, 10, localMeasurementStdDevs.get(0, 0));
-
     // Initialize vision K
     setVisionMeasurementStdDevs(visionMeasurementStdDevs);
 
-    m_observer =
-          new KalmanFilter<>(
-            Nat.N3(),
-            Nat.N3(),
-            new LinearSystem<>(
-              Matrix.eye(Nat.N3()), 
-              Matrix.eye(Nat.N3()), 
-              Matrix.eye(Nat.N3()), 
-              new Matrix<>(Nat.N3(), Nat.N3())),
-            m_stateStdDevs,
-            extendedlocalMeasurementStdDevs,
-            nominalDtSeconds);
-
-    m_gyroOffset = initialPoseMeters.getRotation().minus(gyroAngle);
-    m_previousAngle = initialPoseMeters.getRotation();
-
-    m_prevModulePositions = new SwerveModulePosition[m_numModules];
-
-    for (int i = 0; i < m_numModules; i++) {
-      m_prevModulePositions[i] =
-          new SwerveModulePosition(
-              modulePositions[i].distanceMeters,
-              modulePositions[i].angle);
-    }
-
-    m_observer.setXhat(StateSpaceUtil.poseTo3dVector(initialPoseMeters));
+    m_odometry = new SwerveDriveOdometry(kinematics, gyroAngle, modulePositions);
   }
 
   /**
@@ -179,15 +154,8 @@ public class SwerveDrivePoseEstimator {
   public void resetPosition(
       Rotation2d gyroAngle, SwerveModulePosition[] modulePositions, Pose2d poseMeters) {
     // Reset state estimate and error covariance
-    m_observer.reset();
+    m_odometry.resetPosition(poseMeters, gyroAngle, modulePositions);
     m_poseBuffer.clear();
-
-    m_observer.setXhat(StateSpaceUtil.poseTo3dVector(poseMeters));
-
-    m_prevTimeSeconds = -1;
-
-    m_gyroOffset = getEstimatedPosition().getRotation().minus(gyroAngle);
-    m_previousAngle = poseMeters.getRotation();
   }
 
   /**
@@ -196,8 +164,7 @@ public class SwerveDrivePoseEstimator {
    * @return The estimated robot pose in meters.
    */
   public Pose2d getEstimatedPosition() {
-    return new Pose2d(
-        m_observer.getXhat(0), m_observer.getXhat(1), new Rotation2d(m_observer.getXhat(2)));
+    return m_odometry.getPoseMeters();
   }
 
   /**
@@ -242,7 +209,10 @@ public class SwerveDrivePoseEstimator {
     var left = one_minus_k.times(StateSpaceUtil.poseTo3dVector(getEstimatedPosition()));
     var right = m_visionK.times(StateSpaceUtil.poseTo3dVector(relativeMeasurement));
 
-    m_observer.setXhat(left.plus(right));
+    var pose_vec = left.plus(right);
+    var est_pose = new Pose2d(pose_vec.get(0, 0), pose_vec.get(1, 0), new Rotation2d(pose_vec.get(2, 0)));
+
+    m_odometry.resetPosition(est_pose, m_previousGyroAngle, m_prevModulePositions);
   }
 
   /**
@@ -311,39 +281,12 @@ public class SwerveDrivePoseEstimator {
     }
 
     m_poseBuffer.addSample(currentTimeSeconds, getEstimatedPosition());
+    m_odometry.update(gyroAngle, modulePositions);
 
-    double dt = m_prevTimeSeconds >= 0 ? currentTimeSeconds - m_prevTimeSeconds : m_nominalDt;
-    m_prevTimeSeconds = currentTimeSeconds;
-
-    var moduleDeltas = new SwerveModulePosition[m_numModules];
-
+    m_previousGyroAngle = gyroAngle;
     for (int i = 0; i < m_numModules; i++) {
-      moduleDeltas[i] =
-          new SwerveModulePosition(
-              modulePositions[i].distanceMeters - m_prevModulePositions[i].distanceMeters,
-              modulePositions[i].angle);
-      m_prevModulePositions[i].distanceMeters = modulePositions[i].distanceMeters;
+      m_prevModulePositions[i] = new SwerveModulePosition(modulePositions[i].distanceMeters, null);
     }
-
-    var twist = m_kinematics.toTwist2d(moduleDeltas);
-
-    var angle = gyroAngle.plus(m_gyroOffset);
-    twist.dtheta = angle.minus(m_previousAngle).getRadians();
-    m_previousAngle = angle;
-
-    var previousPose = getEstimatedPosition();
-    var currentPose = previousPose.exp(twist);
-    var delta = currentPose.minus(previousPose);
-
-    var u = VecBuilder.fill(delta.getX(), delta.getY(), delta.getRotation().getRadians());
-
-    m_observer.predict(u, dt);
-
-    var est_pose = getEstimatedPosition();
-
-    var localY = VecBuilder.fill(est_pose.getX(), est_pose.getY(), angle.getRadians());
-
-    m_observer.correct(u, localY);
 
     return getEstimatedPosition();
   }

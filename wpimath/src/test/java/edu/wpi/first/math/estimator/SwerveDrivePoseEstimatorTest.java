@@ -41,7 +41,6 @@ class SwerveDrivePoseEstimatorTest {
             new Pose2d(),
             kinematics,
             VecBuilder.fill(0.1, 0.1, 0.1),
-            VecBuilder.fill(0.005),
             VecBuilder.fill(0.1, 0.1, 0.1),
             0.02);
 
@@ -153,7 +152,6 @@ class SwerveDrivePoseEstimatorTest {
             new Pose2d(),
             kinematics,
             VecBuilder.fill(0.1, 0.1, 0.1),
-            VecBuilder.fill(0.005),
             VecBuilder.fill(0.1, 0.1, 0.1),
             0.02);
 
