@@ -33,9 +33,6 @@ class SwerveDriveOdometry {
   /**
    * Constructs a SwerveDriveOdometry object.
    *
-   * IF modulePositions is unspecified,
-   * You NEED to reset your encoders (to zero).
-   *
    * @param kinematics The swerve drive kinematics for your drivetrain.
    * @param gyroAngle The angle reported by the gyroscope.
    * @param modulePositions The wheel positions reported by each module.
@@ -48,9 +45,6 @@ class SwerveDriveOdometry {
 
   /**
    * Resets the robot's position on the field.
-   *
-   * IF modulePositions is unspecified,
-   * You NEED to reset your encoders (to zero).
    *
    * The gyroscope angle does not need to be reset here on the user's robot
    * code. The library automatically takes care of offsetting the gyro angle.
@@ -72,11 +66,9 @@ class SwerveDriveOdometry {
 
   /**
    * Updates the robot's position on the field using forward kinematics and
-   * integration of the pose over time. This method takes in the current time as
-   * a parameter to calculate period (difference between two timestamps). The
-   * period is used to calculate the change in distance from a velocity. This
-   * also takes in an angle parameter which is used instead of the
-   * angular rate that is calculated from forward kinematics.
+   * integration of the pose over time. This also takes in an angle parameter 
+   * which is used instead of the angular rate that is calculated from forward
+   * kinematics.
    *
    * @param gyroAngle The angle reported by the gyroscope.
    * @param modulePositions The current position of all swerve modules. Please
@@ -96,7 +88,7 @@ class SwerveDriveOdometry {
   Rotation2d m_previousAngle;
   Rotation2d m_gyroOffset;
 
-  wpi::array<SwerveModulePosition, NumModules> m_previousModulePositions;
+  wpi::array<SwerveModulePosition, NumModules> m_previousModulePositions{wpi::empty_array};
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(WPILIB_DLLEXPORT)
