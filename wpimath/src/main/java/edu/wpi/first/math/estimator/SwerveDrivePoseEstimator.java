@@ -97,6 +97,7 @@ public class SwerveDrivePoseEstimator {
       double nominalDtSeconds) {
 
     m_nominalDt = nominalDtSeconds;
+    m_numModules = modulePositions.length;
 
     m_previousGyroAngle = gyroAngle;
     m_prevModulePositions = new SwerveModulePosition[m_numModules];
@@ -108,7 +109,6 @@ public class SwerveDrivePoseEstimator {
     m_poseBuffer = TimeInterpolatableBuffer.createBuffer(1.5);
 
     m_stateStdDevs = stateStdDevs;
-    m_numModules = modulePositions.length;
 
     // Initialize vision K
     setVisionMeasurementStdDevs(visionMeasurementStdDevs);
@@ -155,7 +155,7 @@ public class SwerveDrivePoseEstimator {
   public void resetPosition(
       Rotation2d gyroAngle, SwerveModulePosition[] modulePositions, Pose2d poseMeters) {
     // Reset state estimate and error covariance
-    m_odometry.resetPosition(poseMeters, gyroAngle, modulePositions);
+    m_odometry.resetPosition(gyroAngle, modulePositions, poseMeters);
     m_poseBuffer.clear();
   }
 
@@ -213,7 +213,7 @@ public class SwerveDrivePoseEstimator {
 
     var est_pose = getEstimatedPosition().exp(scaled_twist);
 
-    m_odometry.resetPosition(est_pose, m_previousGyroAngle, m_prevModulePositions);
+    m_odometry.resetPosition(m_previousGyroAngle, m_prevModulePositions, est_pose);
   }
 
   /**

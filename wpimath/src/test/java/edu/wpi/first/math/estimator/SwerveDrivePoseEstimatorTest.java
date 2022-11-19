@@ -275,8 +275,8 @@ class SwerveDrivePoseEstimatorTest {
     var estimator =
         new SwerveDrivePoseEstimator(
             new Rotation2d(),
-            new Pose2d(-1, -1, Rotation2d.fromRadians(-1)),
             new SwerveModulePosition[] {fl, fr, bl, br},
+            new Pose2d(-1, -1, Rotation2d.fromRadians(-1)),
             kinematics,
             VecBuilder.fill(0.05, 0.05, 0.01),
             VecBuilder.fill(0.1, 0.1, 0.1),
