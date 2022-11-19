@@ -6,8 +6,6 @@ package edu.wpi.first.math.estimator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import edu.wpi.first.math.Matrix;
-import edu.wpi.first.math.Nat;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -15,7 +13,6 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.SwerveDriveKinematics;
 import edu.wpi.first.math.kinematics.SwerveModulePosition;
-import edu.wpi.first.math.system.LinearSystem;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
 import edu.wpi.first.math.trajectory.TrajectoryGenerator;
 import java.util.List;
@@ -131,7 +128,11 @@ class SwerveDrivePoseEstimatorTest {
 
     assertEquals(0.0, estimator.getEstimatedPosition().getX(), 5e-2, "Incorrect Final X");
     assertEquals(0.0, estimator.getEstimatedPosition().getY(), 5e-2, "Incorrect Final Y");
-    assertEquals(Math.PI / 4, estimator.getEstimatedPosition().getRotation().getRadians(), 0.15, "Incorrect Final Theta");
+    assertEquals(
+        Math.PI / 4,
+        estimator.getEstimatedPosition().getRotation().getRadians(),
+        0.15,
+        "Incorrect Final Theta");
 
     assertEquals(
         0.0, errorSum / (trajectory.getTotalTimeSeconds() / dt), 0.05, "Incorrect mean error");
@@ -251,7 +252,11 @@ class SwerveDrivePoseEstimatorTest {
 
     assertEquals(0.0, estimator.getEstimatedPosition().getX(), 5e-2, "Incorrect Final X");
     assertEquals(0.0, estimator.getEstimatedPosition().getY(), 5e-2, "Incorrect Final Y");
-    assertEquals(0.0, estimator.getEstimatedPosition().getRotation().getRadians(), 0.15, "Incorrect Final Theta");
+    assertEquals(
+        0.0,
+        estimator.getEstimatedPosition().getRotation().getRadians(),
+        0.15,
+        "Incorrect Final Theta");
 
     assertEquals(
         0.0, errorSum / (trajectory.getTotalTimeSeconds() / dt), 0.05, "Incorrect mean error");
@@ -366,7 +371,11 @@ class SwerveDrivePoseEstimatorTest {
 
     assertEquals(0.0, estimator.getEstimatedPosition().getX(), 5e-2, "Incorrect Final X");
     assertEquals(0.0, estimator.getEstimatedPosition().getY(), 5e-2, "Incorrect Final Y");
-    assertEquals(Math.PI / 4, estimator.getEstimatedPosition().getRotation().getRadians(), 0.15, "Incorrect Final Theta");
+    assertEquals(
+        Math.PI / 4,
+        estimator.getEstimatedPosition().getRotation().getRadians(),
+        0.15,
+        "Incorrect Final Theta");
 
     assertEquals(
         0.0, errorSum / (trajectory.getTotalTimeSeconds() / dt), 0.05, "Incorrect mean error");
