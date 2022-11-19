@@ -126,7 +126,7 @@ public class SwerveDrivePoseEstimator {
     // Initialize vision K
     setVisionMeasurementStdDevs(visionMeasurementStdDevs);
 
-    m_odometry = new SwerveDriveOdometry(kinematics, gyroAngle, modulePositions);
+    m_odometry = new SwerveDriveOdometry(kinematics, gyroAngle, modulePositions, initialPoseMeters);
   }
 
   /**
@@ -170,6 +170,11 @@ public class SwerveDrivePoseEstimator {
     // Reset state estimate and error covariance
     m_odometry.resetPosition(gyroAngle, modulePositions, poseMeters);
     m_poseBuffer.clear();
+
+    m_previousGyroAngle = gyroAngle;
+    for (int i = 0; i < m_numModules; i++) {
+      m_prevModulePositions[i] = new SwerveModulePosition(modulePositions[i].distanceMeters, null);
+    }
   }
 
   /**
