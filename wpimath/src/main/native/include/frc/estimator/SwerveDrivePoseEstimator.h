@@ -80,12 +80,12 @@ class SwerveDrivePoseEstimator {
       const wpi::array<double, 3>& stateStdDevs,
       const wpi::array<double, 3>& visionMeasurementStdDevs,
       units::second_t nominalDt = 20_ms)
-      : m_nominalDt(nominalDt),
+      : m_odometry{kinematics, gyroAngle, modulePositions, initialPose},
+        m_nominalDt(nominalDt),
         m_previousGyroAngle(gyroAngle),
-        m_stateStdDevs(stateStdDevs),
-        m_odometry{kinematics, gyroAngle, modulePositions, initialPose} {
+        m_stateStdDevs(stateStdDevs) {
 
-    for (int i = 0; i < NumModules; i++) {
+    for (size_t i = 0; i < NumModules; i++) {
       m_prevModulePositions[i] = {modulePositions[i].distance, modulePositions[i].angle};
     }
 

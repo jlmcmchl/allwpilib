@@ -18,7 +18,7 @@ SwerveDriveOdometry<NumModules>::SwerveDriveOdometry(
   m_previousAngle = m_pose.Rotation();
   m_gyroOffset = m_pose.Rotation() - gyroAngle;
 
-  for (int i = 0; i < NumModules; i++) {
+  for (size_t i = 0; i < NumModules; i++) {
     m_previousModulePositions[i] = {modulePositions[i].distance,
                            modulePositions[i].angle};
   }
@@ -36,7 +36,7 @@ void SwerveDriveOdometry<NumModules>::ResetPosition(
   m_previousAngle = pose.Rotation();
   m_gyroOffset = m_pose.Rotation() - gyroAngle;
 
-  for (int i = 0; i < NumModules; i++) {
+  for (size_t i = 0; i < NumModules; i++) {
     m_previousModulePositions[i].distance = modulePositions[i].distance;
   }
 }
