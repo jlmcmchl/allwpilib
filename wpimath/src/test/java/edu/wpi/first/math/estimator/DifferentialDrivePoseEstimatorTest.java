@@ -16,8 +16,10 @@ import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
 import edu.wpi.first.math.trajectory.TrajectoryGenerator;
+
 import java.util.List;
 import java.util.Random;
+import java.util.TreeMap;
 import java.util.function.Function;
 import org.junit.jupiter.api.Test;
 
@@ -137,21 +139,20 @@ class DifferentialDrivePoseEstimatorTest {
 
     System.out.print("time, est_x, est_y, est_theta, true_x, true_y, true_theta\n");
 
+    final TreeMap<Double, Pose2d> visionUpdateQueue = new TreeMap<>();
+
     final double visionUpdateRate = 0.1;
-    Pose2d lastVisionPose = null;
-    double lastVisionUpdateTime = Double.NEGATIVE_INFINITY;
+    final double visionUpdateDelay = 0.25;
 
     double maxError = Double.NEGATIVE_INFINITY;
     double errorSum = 0;
     while (t <= trajectory.getTotalTimeSeconds()) {
       var groundTruthState = trajectory.sample(t);
 
-      if (lastVisionUpdateTime + visionUpdateRate < t) {
-        if (lastVisionPose != null) {
-          estimator.addVisionMeasurement(lastVisionPose, lastVisionUpdateTime);
-        }
+      // We are due for a new vision measurement if it's been `visionUpdateRate` seconds since the last vision measurement
+      if (visionUpdateQueue.isEmpty() || visionUpdateQueue.lastKey() + visionUpdateRate < t) {
 
-        lastVisionPose =
+        Pose2d newVisionPose =
             visionMeasurementGenerator
                 .apply(groundTruthState)
                 .plus(
@@ -159,7 +160,13 @@ class DifferentialDrivePoseEstimatorTest {
                         new Translation2d(rand.nextGaussian() * 0.1, rand.nextGaussian() * 0.1),
                         new Rotation2d(rand.nextGaussian() * 0.05)));
 
-        lastVisionUpdateTime = t;
+        visionUpdateQueue.put(t, newVisionPose);
+      }
+
+      // We should apply the oldest vision measurement if it has been `visionUpdateDelay` seconds since it was measured
+      if (visionUpdateQueue.size() > 0 && visionUpdateQueue.firstKey() + visionUpdateDelay < t) {
+        var visionEntry = visionUpdateQueue.pollFirstEntry();
+        estimator.addVisionMeasurement(visionEntry.getValue(), visionEntry.getKey());
       }
 
       var chassisSpeeds = chassisSpeedsGenerator.apply(groundTruthState);

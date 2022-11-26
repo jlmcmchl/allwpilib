@@ -48,6 +48,10 @@ public class DifferentialDrivePoseEstimator {
   private final TimeInterpolatableBuffer<Pose2d> m_poseBuffer =
       TimeInterpolatableBuffer.createBuffer(1.5);
 
+  private final TimeInterpolatableBuffer<Rotation2d> m_gyroInputBuffer = TimeInterpolatableBuffer.createBuffer(1.5);
+  private final TimeInterpolatableBuffer<Double> m_leftInputBuffer = TimeInterpolatableBuffer.createDoubleBuffer(1.5);
+  private final TimeInterpolatableBuffer<Double> m_rightInputBuffer = TimeInterpolatableBuffer.createDoubleBuffer(1.5);
+  
   /**
    * Constructs a DifferentialDrivePoseEstimator.
    *
@@ -130,6 +134,9 @@ public class DifferentialDrivePoseEstimator {
       Pose2d poseMeters) {
     // Reset state estimate and error covariance
     m_odometry.resetPosition(gyroAngle, leftPositionMeters, rightPositionMeters, poseMeters);
+    m_gyroInputBuffer.clear();
+    m_leftInputBuffer.clear();
+    m_rightInputBuffer.clear();
     m_poseBuffer.clear();
 
     m_previousGyroAngle = gyroAngle;
@@ -184,12 +191,19 @@ public class DifferentialDrivePoseEstimator {
     var scaledTwist =
         new Twist2d(k_times_twist.get(0, 0), k_times_twist.get(1, 0), k_times_twist.get(2, 0));
 
-    // Step 5: Apply scaled twist to the latest pose
-    var estimatedPose = getEstimatedPosition().exp(scaledTwist);
+    var gyroSample = m_gyroInputBuffer.getSample(timestampSeconds).get();
+    var leftDistanceSample = m_leftInputBuffer.getSample(timestampSeconds).get();
+    var rightDistanceSample = m_rightInputBuffer.getSample(timestampSeconds).get();
+    
+    m_odometry.resetPosition(gyroSample, leftDistanceSample, rightDistanceSample, sample.get().exp(scaledTwist));
 
-    // Step 6: Apply new pose to odometry
-    m_odometry.resetPosition(
-        m_previousGyroAngle, m_prevLeftDistanceMeters, m_prevRightDistanceMeters, estimatedPose);
+    for (Double timestamp : m_poseBuffer.getInternalMap().tailMap(timestampSeconds).keySet()) {
+      var gyro = m_gyroInputBuffer.getSample(timestamp).get();
+      var leftDistance = m_leftInputBuffer.getSample(timestamp).get();
+      var rightDistance = m_rightInputBuffer.getSample(timestamp).get();
+
+      updateWithTime(timestamp, gyro, leftDistance, rightDistance);
+    }
   }
 
   /**
@@ -256,8 +270,12 @@ public class DifferentialDrivePoseEstimator {
       Rotation2d gyroAngle,
       double distanceLeftMeters,
       double distanceRightMeters) {
-    m_poseBuffer.addSample(currentTimeSeconds, getEstimatedPosition());
+    m_gyroInputBuffer.addSample(currentTimeSeconds, gyroAngle);
+    m_leftInputBuffer.addSample(currentTimeSeconds, distanceLeftMeters);
+    m_rightInputBuffer.addSample(currentTimeSeconds, distanceRightMeters);
     m_odometry.update(gyroAngle, distanceLeftMeters, distanceRightMeters);
+    m_poseBuffer.addSample(currentTimeSeconds, getEstimatedPosition());
+
 
     m_previousGyroAngle = gyroAngle;
     m_prevLeftDistanceMeters = distanceLeftMeters;
