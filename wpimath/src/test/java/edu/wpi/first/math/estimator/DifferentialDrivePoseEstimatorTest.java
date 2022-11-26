@@ -26,8 +26,11 @@ import org.junit.jupiter.api.Test;
 class DifferentialDrivePoseEstimatorTest {
   @Test
   void testAccuracy() {
+    var kinematics = new DifferentialDriveKinematics(1);
+
     var estimator =
         new DifferentialDrivePoseEstimator(
+            kinematics,
             new Rotation2d(),
             0,
             0,
@@ -44,8 +47,6 @@ class DifferentialDrivePoseEstimatorTest {
                 new Pose2d(-3, 0, Rotation2d.fromDegrees(-90)),
                 new Pose2d(0, 0, Rotation2d.fromDegrees(45))),
             new TrajectoryConfig(2, 2));
-
-    var kinematics = new DifferentialDriveKinematics(1);
 
     testFollowTrajectory(
         kinematics,
@@ -65,8 +66,11 @@ class DifferentialDrivePoseEstimatorTest {
 
   @Test
   void testBadInitialPose() {
+    var kinematics = new DifferentialDriveKinematics(1);
+
     var estimator =
         new DifferentialDrivePoseEstimator(
+            kinematics,
             new Rotation2d(),
             0,
             0,
@@ -84,7 +88,6 @@ class DifferentialDrivePoseEstimatorTest {
                 new Pose2d(0, 0, Rotation2d.fromDegrees(45))),
             new TrajectoryConfig(2, 2));
 
-    var kinematics = new DifferentialDriveKinematics(1);
 
     for (int offset_direction_degs = 0; offset_direction_degs < 360; offset_direction_degs += 45) {
       for (int offset_heading_degs = 0; offset_heading_degs < 360; offset_heading_degs += 45) {
@@ -142,7 +145,7 @@ class DifferentialDrivePoseEstimatorTest {
     final TreeMap<Double, Pose2d> visionUpdateQueue = new TreeMap<>();
 
     final double visionUpdateRate = 0.1;
-    final double visionUpdateDelay = 0.25;
+    final double visionUpdateDelay = 1.0;
 
     double maxError = Double.NEGATIVE_INFINITY;
     double errorSum = 0;

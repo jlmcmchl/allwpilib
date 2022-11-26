@@ -4,14 +4,19 @@
 
 package edu.wpi.first.math.estimator;
 
+import java.util.Map;
+
 import edu.wpi.first.math.Matrix;
 import edu.wpi.first.math.Nat;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Twist2d;
+import edu.wpi.first.math.interpolation.Interpolatable;
 import edu.wpi.first.math.interpolation.TimeInterpolatableBuffer;
+import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
+import edu.wpi.first.math.kinematics.DifferentialDriveWheelDistances;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.util.WPIUtilJNI;
@@ -38,19 +43,41 @@ import edu.wpi.first.util.WPIUtilJNI;
  * heading.
  */
 public class DifferentialDrivePoseEstimator {
+  private final DifferentialDriveKinematics m_kinematics;
   private final DifferentialDriveOdometry m_odometry;
-  private Rotation2d m_previousGyroAngle;
   private final Matrix<N3, N1> m_q = new Matrix<>(Nat.N3(), Nat.N1());
-  private double m_prevLeftDistanceMeters;
-  private double m_prevRightDistanceMeters;
   private Matrix<N3, N3> m_visionK = new Matrix<>(Nat.N3(), Nat.N3());
 
-  private final TimeInterpolatableBuffer<Pose2d> m_poseBuffer =
+  private final TimeInterpolatableBuffer<InterpolationRecord> m_poseBuffer =
       TimeInterpolatableBuffer.createBuffer(1.5);
 
-  private final TimeInterpolatableBuffer<Rotation2d> m_gyroInputBuffer = TimeInterpolatableBuffer.createBuffer(1.5);
-  private final TimeInterpolatableBuffer<Double> m_leftInputBuffer = TimeInterpolatableBuffer.createDoubleBuffer(1.5);
-  private final TimeInterpolatableBuffer<Double> m_rightInputBuffer = TimeInterpolatableBuffer.createDoubleBuffer(1.5);
+  private class InterpolationRecord implements Interpolatable<InterpolationRecord> {
+    private Pose2d pose;
+    private Rotation2d gyroAngle;
+    private DifferentialDriveWheelDistances wheelDistances;
+    private InterpolationRecord(Pose2d pose, Rotation2d gyro, DifferentialDriveWheelDistances wheels) {
+      this.pose = pose;
+      this.gyroAngle = gyro;
+      this.wheelDistances = wheels;
+    }
+
+    @Override
+    public InterpolationRecord interpolate(InterpolationRecord endValue, double t) {
+      if (t < 0) {
+        return this;
+      } else if (t >= 1) {
+        return endValue;
+      } else {
+        Twist2d twist = pose.log(endValue.pose);
+        var scaledTwist = new Twist2d(twist.dx * t, twist.dy * t, twist.dtheta * t);
+        var deltas = m_kinematics.toWheelDeltas(scaledTwist);
+        var newDistances = new DifferentialDriveWheelDistances(wheelDistances.leftMeters + deltas.leftMeters, wheelDistances.rightMeters + deltas.rightMeters);
+  
+        return new InterpolationRecord(pose.exp(scaledTwist), gyroAngle.plus(Rotation2d.fromRadians(scaledTwist.dtheta)), newDistances);
+      }
+    }
+
+  }
   
   /**
    * Constructs a DifferentialDrivePoseEstimator.
@@ -67,12 +94,14 @@ public class DifferentialDrivePoseEstimator {
    *     theta]ᵀ, with units in meters and radians.
    */
   public DifferentialDrivePoseEstimator(
+      DifferentialDriveKinematics kinematics,
       Rotation2d gyroAngle,
       double leftDistanceMeters,
       double rightDistanceMeters,
       Pose2d initialPoseMeters,
       Matrix<N3, N1> stateStdDevs,
       Matrix<N3, N1> visionMeasurementStdDevs) {
+    m_kinematics = kinematics;
     m_odometry =
         new DifferentialDriveOdometry(
             gyroAngle, leftDistanceMeters, rightDistanceMeters, initialPoseMeters);
@@ -80,10 +109,6 @@ public class DifferentialDrivePoseEstimator {
     for (int i = 0; i < 3; ++i) {
       m_q.set(i, 0, stateStdDevs.get(i, 0) * stateStdDevs.get(i, 0));
     }
-
-    m_previousGyroAngle = gyroAngle;
-    m_prevLeftDistanceMeters = leftDistanceMeters;
-    m_prevRightDistanceMeters = rightDistanceMeters;
 
     // Initialize vision R
     setVisionMeasurementStdDevs(visionMeasurementStdDevs);
@@ -134,14 +159,7 @@ public class DifferentialDrivePoseEstimator {
       Pose2d poseMeters) {
     // Reset state estimate and error covariance
     m_odometry.resetPosition(gyroAngle, leftPositionMeters, rightPositionMeters, poseMeters);
-    m_gyroInputBuffer.clear();
-    m_leftInputBuffer.clear();
-    m_rightInputBuffer.clear();
     m_poseBuffer.clear();
-
-    m_previousGyroAngle = gyroAngle;
-    m_prevLeftDistanceMeters = leftPositionMeters;
-    m_prevRightDistanceMeters = rightPositionMeters;
   }
 
   /**
@@ -181,7 +199,7 @@ public class DifferentialDrivePoseEstimator {
     }
 
     // Step 2: Measure the twist between the odometry pose and the vision pose
-    var twist = sample.get().log(visionRobotPoseMeters);
+    var twist = sample.get().pose.log(visionRobotPoseMeters);
 
     // Step 3: We should not trust the twist entirely, so instead we scale this twist by a Kalman
     // gain matrix representing how much we trust vision measurements compared to our current pose.
@@ -190,19 +208,12 @@ public class DifferentialDrivePoseEstimator {
     // Step 4: Convert back to Twist2d
     var scaledTwist =
         new Twist2d(k_times_twist.get(0, 0), k_times_twist.get(1, 0), k_times_twist.get(2, 0));
-
-    var gyroSample = m_gyroInputBuffer.getSample(timestampSeconds).get();
-    var leftDistanceSample = m_leftInputBuffer.getSample(timestampSeconds).get();
-    var rightDistanceSample = m_rightInputBuffer.getSample(timestampSeconds).get();
     
-    m_odometry.resetPosition(gyroSample, leftDistanceSample, rightDistanceSample, sample.get().exp(scaledTwist));
+    m_odometry.resetPosition(sample.get().gyroAngle, sample.get().wheelDistances.leftMeters, sample.get().wheelDistances.rightMeters, sample.get().pose.exp(scaledTwist));
 
-    for (Double timestamp : m_poseBuffer.getInternalMap().tailMap(timestampSeconds).keySet()) {
-      var gyro = m_gyroInputBuffer.getSample(timestamp).get();
-      var leftDistance = m_leftInputBuffer.getSample(timestamp).get();
-      var rightDistance = m_rightInputBuffer.getSample(timestamp).get();
+    for (Map.Entry<Double, InterpolationRecord> entry : m_poseBuffer.getInternalMap().tailMap(timestampSeconds).entrySet()) {
 
-      updateWithTime(timestamp, gyro, leftDistance, rightDistance);
+      updateWithTime(entry.getKey(), entry.getValue().gyroAngle, entry.getValue().wheelDistances.leftMeters, entry.getValue().wheelDistances.rightMeters);
     }
   }
 
@@ -270,16 +281,8 @@ public class DifferentialDrivePoseEstimator {
       Rotation2d gyroAngle,
       double distanceLeftMeters,
       double distanceRightMeters) {
-    m_gyroInputBuffer.addSample(currentTimeSeconds, gyroAngle);
-    m_leftInputBuffer.addSample(currentTimeSeconds, distanceLeftMeters);
-    m_rightInputBuffer.addSample(currentTimeSeconds, distanceRightMeters);
     m_odometry.update(gyroAngle, distanceLeftMeters, distanceRightMeters);
-    m_poseBuffer.addSample(currentTimeSeconds, getEstimatedPosition());
-
-
-    m_previousGyroAngle = gyroAngle;
-    m_prevLeftDistanceMeters = distanceLeftMeters;
-    m_prevRightDistanceMeters = distanceRightMeters;
+    m_poseBuffer.addSample(currentTimeSeconds, new InterpolationRecord(getEstimatedPosition(), gyroAngle, new DifferentialDriveWheelDistances(distanceLeftMeters, distanceRightMeters)));
 
     return getEstimatedPosition();
   }
