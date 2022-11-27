@@ -84,10 +84,13 @@ public class SwerveDrivePoseEstimator {
               new SwerveModulePosition(ds - this.wheelPositions[i].distanceMeters, theta);
         }
 
+        var gyro_lerp = gyroAngle.interpolate(endValue.gyroAngle, t);
+
         Twist2d twist = m_kinematics.toTwist2d(wheelDeltas);
+        twist.dtheta = gyro_lerp.minus(gyroAngle).getRadians();
 
         return new InterpolationRecord(
-            pose.exp(twist), gyroAngle.interpolate(endValue.gyroAngle, t), wheelPositions);
+            pose.exp(twist), gyro_lerp, wheelPositions);
       }
     }
   }

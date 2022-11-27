@@ -92,10 +92,13 @@ public class MecanumDrivePoseEstimator {
                 wheels_lerp.rearLeftMeters - this.wheelPositions.rearLeftMeters,
                 wheels_lerp.rearRightMeters - this.wheelPositions.rearRightMeters);
 
+        var gyro_lerp = gyroAngle.interpolate(endValue.gyroAngle, t);
+
         Twist2d twist = m_kinematics.toTwist2d(wheels_delta);
+        twist.dtheta = gyro_lerp.minus(gyroAngle).getRadians();
 
         return new InterpolationRecord(
-            pose.exp(twist), gyroAngle.interpolate(endValue.gyroAngle, t), wheels_lerp);
+            pose.exp(twist), gyro_lerp, wheels_lerp);
       }
     }
   }

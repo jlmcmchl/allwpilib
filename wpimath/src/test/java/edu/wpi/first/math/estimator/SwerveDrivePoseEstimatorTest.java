@@ -134,7 +134,7 @@ class SwerveDrivePoseEstimatorTest {
             new Pose2d(0, 0, Rotation2d.fromDegrees(45)),
             0.02,
             0.1,
-            0.25,
+            1.0,
             false);
       }
     }

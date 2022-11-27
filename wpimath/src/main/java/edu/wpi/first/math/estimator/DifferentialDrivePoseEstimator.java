@@ -73,11 +73,13 @@ public class DifferentialDrivePoseEstimator {
       } else {
         var left_lerp = MathUtil.interpolate(this.leftMeters, endValue.leftMeters, t);
         var right_lerp = MathUtil.interpolate(this.rightMeters, endValue.rightMeters, t);
+        var gyro_lerp = gyroAngle.interpolate(endValue.gyroAngle, t);
 
         Twist2d twist = m_kinematics.toTwist2d(left_lerp - leftMeters, right_lerp - rightMeters);
+        twist.dtheta = gyro_lerp.minus(gyroAngle).getRadians();
 
         return new InterpolationRecord(
-            pose.exp(twist), gyroAngle.interpolate(endValue.gyroAngle, t), left_lerp, right_lerp);
+            pose.exp(twist), gyro_lerp, left_lerp, right_lerp);
       }
     }
   }
