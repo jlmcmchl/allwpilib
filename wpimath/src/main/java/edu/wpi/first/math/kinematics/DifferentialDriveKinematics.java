@@ -59,17 +59,8 @@ public class DifferentialDriveKinematics {
             + trackWidthMeters / 2 * chassisSpeeds.omegaRadiansPerSecond);
   }
 
-  public Twist2d toTwist2d(DifferentialDriveWheelDistances deltas) {
+  public Twist2d toTwist2d(double leftMeters, double rightMeters) {
     return new Twist2d(
-      (deltas.leftMeters + deltas.rightMeters) / 2,
-      0,
-      (deltas.rightMeters - deltas.leftMeters) / trackWidthMeters);
-  }
-
-  public DifferentialDriveWheelDistances toWheelDeltas(Twist2d twist) {
-    return new DifferentialDriveWheelDistances(
-      twist.dx - trackWidthMeters / 2 * twist.dtheta,
-      twist.dx + trackWidthMeters / 2 * twist.dtheta
-    );
+        (leftMeters + rightMeters) / 2, 0, (rightMeters - leftMeters) / trackWidthMeters);
   }
 }

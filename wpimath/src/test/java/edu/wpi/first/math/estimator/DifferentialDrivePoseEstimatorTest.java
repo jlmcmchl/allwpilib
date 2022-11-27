@@ -16,7 +16,6 @@ import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
 import edu.wpi.first.math.trajectory.TrajectoryGenerator;
-
 import java.util.List;
 import java.util.Random;
 import java.util.TreeMap;
@@ -35,9 +34,8 @@ class DifferentialDrivePoseEstimatorTest {
             0,
             0,
             new Pose2d(),
-            VecBuilder.fill(0.1, 0.1, 0.1),
-            VecBuilder.fill(0.45, 0.45, 0.1));
-
+            VecBuilder.fill(0.02, 0.02, 0.01),
+            VecBuilder.fill(0.1, 0.1, 0.1));
     var trajectory =
         TrajectoryGenerator.generateTrajectory(
             List.of(
@@ -61,6 +59,8 @@ class DifferentialDrivePoseEstimatorTest {
         trajectory.getInitialPose(),
         new Pose2d(0, 0, Rotation2d.fromDegrees(45)),
         0.02,
+        0.1,
+        0.25,
         true);
   }
 
@@ -75,8 +75,8 @@ class DifferentialDrivePoseEstimatorTest {
             0,
             0,
             new Pose2d(),
-            VecBuilder.fill(0.1, 0.1, 0.1),
-            VecBuilder.fill(0.45, 0.45, 0.1));
+            VecBuilder.fill(0.02, 0.02, 0.01),
+            VecBuilder.fill(0.1, 0.1, 0.1));
 
     var trajectory =
         TrajectoryGenerator.generateTrajectory(
@@ -87,7 +87,6 @@ class DifferentialDrivePoseEstimatorTest {
                 new Pose2d(-3, 0, Rotation2d.fromDegrees(-90)),
                 new Pose2d(0, 0, Rotation2d.fromDegrees(45))),
             new TrajectoryConfig(2, 2));
-
 
     for (int offset_direction_degs = 0; offset_direction_degs < 360; offset_direction_degs += 45) {
       for (int offset_heading_degs = 0; offset_heading_degs < 360; offset_heading_degs += 45) {
@@ -115,6 +114,8 @@ class DifferentialDrivePoseEstimatorTest {
             initial_pose,
             new Pose2d(0, 0, Rotation2d.fromDegrees(45)),
             0.02,
+            0.1,
+            0.25,
             false);
       }
     }
@@ -129,6 +130,8 @@ class DifferentialDrivePoseEstimatorTest {
       final Pose2d startingPose,
       final Pose2d endingPose,
       final double dt,
+      final double visionUpdateRate,
+      final double visionUpdateDelay,
       final boolean checkError) {
     double leftDistanceMeters = 0;
     double rightDistanceMeters = 0;
@@ -144,15 +147,13 @@ class DifferentialDrivePoseEstimatorTest {
 
     final TreeMap<Double, Pose2d> visionUpdateQueue = new TreeMap<>();
 
-    final double visionUpdateRate = 0.1;
-    final double visionUpdateDelay = 1.0;
-
     double maxError = Double.NEGATIVE_INFINITY;
     double errorSum = 0;
     while (t <= trajectory.getTotalTimeSeconds()) {
       var groundTruthState = trajectory.sample(t);
 
-      // We are due for a new vision measurement if it's been `visionUpdateRate` seconds since the last vision measurement
+      // We are due for a new vision measurement if it's been `visionUpdateRate` seconds since the
+      // last vision measurement
       if (visionUpdateQueue.isEmpty() || visionUpdateQueue.lastKey() + visionUpdateRate < t) {
 
         Pose2d newVisionPose =
@@ -166,7 +167,8 @@ class DifferentialDrivePoseEstimatorTest {
         visionUpdateQueue.put(t, newVisionPose);
       }
 
-      // We should apply the oldest vision measurement if it has been `visionUpdateDelay` seconds since it was measured
+      // We should apply the oldest vision measurement if it has been `visionUpdateDelay` seconds
+      // since it was measured
       if (visionUpdateQueue.size() > 0 && visionUpdateQueue.firstKey() + visionUpdateDelay < t) {
         var visionEntry = visionUpdateQueue.pollFirstEntry();
         estimator.addVisionMeasurement(visionEntry.getValue(), visionEntry.getKey());
