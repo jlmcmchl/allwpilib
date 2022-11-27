@@ -134,7 +134,6 @@ public final class TimeInterpolatableBuffer<T> {
     }
   }
 
-
   // Unsafe! DO NOT USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING
   public NavigableMap<Double, T> getInternalMap() {
     return m_pastSnapshots;
