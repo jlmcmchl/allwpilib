@@ -12,6 +12,7 @@
 #include "frc/geometry/Pose2d.h"
 #include "frc/geometry/Rotation2d.h"
 #include "frc/interpolation/TimeInterpolatableBuffer.h"
+#include "frc/kinematics/DifferentialDriveKinematics.h"
 #include "frc/kinematics/DifferentialDriveOdometry.h"
 #include "frc/kinematics/DifferentialDriveWheelSpeeds.h"
 #include "units/time.h"
@@ -64,6 +65,7 @@ class WPILIB_DLLEXPORT DifferentialDrivePoseEstimator {
    *                                 radians.
    */
   DifferentialDrivePoseEstimator(
+      DifferentialDriveKinematics &kinematics,
       const Rotation2d& gyroAngle, units::meter_t leftDistance,
       units::meter_t rightDistance, const Pose2d& initialPose,
       const wpi::array<double, 3>& stateStdDevs,
@@ -199,14 +201,50 @@ class WPILIB_DLLEXPORT DifferentialDrivePoseEstimator {
                         units::meter_t rightDistance);
 
  private:
+   struct InterpolationRecord {
+    DifferentialDriveKinematics &kinematics;
+    Pose2d pose;
+    Rotation2d gyroAngle;
+    units::meter_t leftDistance;
+    units::meter_t rightDistance;
+
+    /**
+     * Checks equality between this InterpolationRecord and another object.
+     *
+     * @param other The other object.
+     * @return Whether the two objects are equal.
+     */
+    bool operator==(const InterpolationRecord& other) const {
+      return this->pose == other.pose && this->gyroAngle == other.gyroAngle && this->leftDistance == other.leftDistance && this->rightDistance == other.rightDistance;
+    }
+
+    /**
+     * Checks inequality between this InterpolationRecord and another object.
+     *
+     * @param other The other object.
+     * @return Whether the two objects are not equal.
+     */
+    bool operator!=(const InterpolationRecord& other) const {
+      return this->pose != other.pose || this->gyroAngle != other.gyroAngle || this->leftDistance != other.leftDistance && this->rightDistance != other.rightDistance;
+    }
+
+    /**
+     * Interpolates between two InterpolationRecords.
+     *
+     * @param endValue The end value for the interpolation.
+     * @param i The interpolant (fraction).
+     *
+     * @return The interpolated state.
+     */
+    InterpolationRecord Interpolate(InterpolationRecord endValue, double i) const;
+  };
+
+  DifferentialDriveKinematics &m_kinematics;
   DifferentialDriveOdometry m_odometry;
-  Rotation2d m_prevGyroAngle;
   wpi::array<double, 3> m_q{wpi::empty_array};
-  units::meter_t m_prevLeftDistance;
-  units::meter_t m_prevRightDistance;
   Eigen::Matrix3d m_visionK = Eigen::Matrix3d::Zero();
 
-  TimeInterpolatableBuffer<Pose2d> m_poseBuffer{1.5_s};
+  TimeInterpolatableBuffer<InterpolationRecord> m_poseBuffer{1.5_s, [](const InterpolationRecord &start, const InterpolationRecord &end, double t) { return start.Interpolate(end, t);}};
 };
 
 }  // namespace frc

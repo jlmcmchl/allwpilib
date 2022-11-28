@@ -23,7 +23,9 @@ void testFollowTrajectory(
     std::function<frc::Pose2d(frc::Trajectory::State&)>
         visionMeasurementGenerator,
     const frc::Pose2d& startingPose, const frc::Pose2d& endingPose,
-    const units::second_t dt, const bool checkError, const bool debug) {
+    const units::second_t dt, const units::second_t kVisionUpdateRate,
+    const units::second_t kVisionUpdateDelay, const bool checkError,
+    const bool debug) {
   wpi::array<frc::SwerveModulePosition, 4> positions{wpi::empty_array};
 
   estimator.ResetPosition(frc::Rotation2d{}, positions, startingPose);
@@ -33,11 +35,7 @@ void testFollowTrajectory(
 
   units::second_t t = 0_s;
 
-  units::second_t kVisionUpdateRate = 0.1_s;
-  frc::Pose2d lastVisionPose;
-  units::second_t lastVisionUpdateTime{-std::numeric_limits<double>::max()};
-
-  std::vector<frc::Pose2d> visionPoses;
+  std::vector<std::pair<units::second_t, frc::Pose2d>> visionPoses;
 
   double maxError = -std::numeric_limits<double>::max();
   double errorSum = 0;
@@ -49,17 +47,23 @@ void testFollowTrajectory(
   while (t < trajectory.TotalTime()) {
     frc::Trajectory::State groundTruthState = trajectory.Sample(t);
 
-    if (lastVisionUpdateTime + kVisionUpdateRate < t) {
-      if (lastVisionPose != frc::Pose2d{}) {
-        estimator.AddVisionMeasurement(lastVisionPose, lastVisionUpdateTime);
-      }
-      lastVisionPose =
+    // We are due for a new vision measurement if it's been `visionUpdateRate` seconds since the
+    // last vision measurement
+    if (visionPoses.empty() || visionPoses.back().first + kVisionUpdateRate < t) {
+      auto visionPose =
           visionMeasurementGenerator(groundTruthState) +
           frc::Transform2d{frc::Translation2d{distribution(generator) * 0.1_m,
                                               distribution(generator) * 0.1_m},
                            frc::Rotation2d{distribution(generator) * 0.05_rad}};
-      visionPoses.push_back(lastVisionPose);
-      lastVisionUpdateTime = t;
+      visionPoses.push_back({t, visionPose});
+    }
+
+    // We should apply the oldest vision measurement if it has been `visionUpdateDelay` seconds
+    // since it was measured
+    if (!visionPoses.empty() && visionPoses.front().first + kVisionUpdateDelay < t) {
+      auto visionEntry = visionPoses.front();
+      estimator.AddVisionMeasurement(visionEntry.second, visionEntry.first);
+      visionPoses.erase(visionPoses.begin());
     }
 
     auto chassisSpeeds = chassisSpeedsGenerator(groundTruthState);
@@ -141,7 +145,7 @@ TEST(SwerveDrivePoseEstimatorTest, AccuracyFacingTrajectory) {
       },
       [&](frc::Trajectory::State& state) { return state.pose; },
       {0_m, 0_m, frc::Rotation2d{45_deg}}, {0_m, 0_m, frc::Rotation2d{45_deg}},
-      0.02_s, true, false);
+      0.02_s, 0.1_s, 0.25_s, true, false);
 }
 
 TEST(SwerveDrivePoseEstimatorTest, BadInitialPose) {
@@ -186,8 +190,8 @@ TEST(SwerveDrivePoseEstimatorTest, BadInitialPose) {
                                       state.velocity * state.curvature};
           },
           [&](frc::Trajectory::State& state) { return state.pose; },
-          initial_pose, {0_m, 0_m, frc::Rotation2d{45_deg}}, 0.02_s, false,
-          false);
+          initial_pose, {0_m, 0_m, frc::Rotation2d{45_deg}}, 0.02_s, 0.1_s,
+          0.25_s, false, false);
     }
   }
 }

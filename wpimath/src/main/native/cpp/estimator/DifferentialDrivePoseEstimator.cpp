@@ -11,15 +11,33 @@
 
 using namespace frc;
 
+DifferentialDrivePoseEstimator::InterpolationRecord DifferentialDrivePoseEstimator::InterpolationRecord::Interpolate(InterpolationRecord endValue,
+                                                 double i) const {
+  if (i < 0) {
+    return *this;
+  } else if (i > 1) {
+    return endValue;
+  } else {
+    auto left = wpi::Lerp(this->leftDistance, endValue.leftDistance, i);
+    auto right = wpi::Lerp(this->rightDistance, endValue.rightDistance, i);
+    auto gyro = wpi::Lerp(this->gyroAngle, endValue.gyroAngle, i);
+
+    auto twist = kinematics.ToTwist2d(left - leftDistance, right - rightDistance);
+    twist.dtheta = (gyro - gyroAngle).Radians();
+
+
+    return {kinematics, pose.Exp(twist), wpi::Lerp(this->gyroAngle, endValue.gyroAngle, i), left, right}; 
+  }
+}
+
 DifferentialDrivePoseEstimator::DifferentialDrivePoseEstimator(
+    DifferentialDriveKinematics &kinematics,
     const Rotation2d& gyroAngle, units::meter_t leftDistance,
     units::meter_t rightDistance, const Pose2d& initialPose,
     const wpi::array<double, 3>& stateStdDevs,
     const wpi::array<double, 3>& visionMeasurementStdDevs)
-    : m_odometry{gyroAngle, leftDistance, rightDistance, initialPose},
-      m_prevGyroAngle{gyroAngle},
-      m_prevLeftDistance{leftDistance},
-      m_prevRightDistance{rightDistance} {
+    : m_kinematics{kinematics},
+      m_odometry{gyroAngle, leftDistance, rightDistance, initialPose} {
   for (size_t i = 0; i < 3; ++i) {
     m_q[i] = stateStdDevs[i] * stateStdDevs[i];
   }
@@ -53,10 +71,6 @@ void DifferentialDrivePoseEstimator::ResetPosition(const Rotation2d& gyroAngle,
   // Reset state estimate and error covariance
   m_odometry.ResetPosition(gyroAngle, leftDistance, rightDistance, pose);
   m_poseBuffer.Clear();
-
-  m_prevGyroAngle = gyroAngle;
-  m_prevLeftDistance = leftDistance;
-  m_prevRightDistance = rightDistance;
 }
 
 Pose2d DifferentialDrivePoseEstimator::GetEstimatedPosition() const {
@@ -73,7 +87,7 @@ void DifferentialDrivePoseEstimator::AddVisionMeasurement(
   }
 
   // Step 2: Measure the twist between the odometry pose and the vision pose
-  auto twist = sample.value().Log(visionRobotPose);
+  auto twist = sample.value().pose.Log(visionRobotPose);
 
   // Step 3: We should not trust the twist entirely, so instead we scale this
   // twist by a Kalman gain matrix representing how much we trust vision
@@ -91,8 +105,23 @@ void DifferentialDrivePoseEstimator::AddVisionMeasurement(
   auto estimatedPose = GetEstimatedPosition().Exp(scaledTwist);
 
   // Step 6: Apply new pose to odometry
-  m_odometry.ResetPosition(m_prevGyroAngle, m_prevLeftDistance,
-                           m_prevRightDistance, estimatedPose);
+  m_odometry.ResetPosition(sample.value().gyroAngle, sample.value().leftDistance,
+                           sample.value().rightDistance, estimatedPose);
+
+  auto internal_buf = m_poseBuffer.GetInternalStructure();
+
+  auto upper_bound = std::lower_bound(
+    internal_buf.begin(), internal_buf.end(), timestamp,
+    [](const auto& pair, auto t) { return t > pair.first; });
+
+  for(auto entry = upper_bound; entry != internal_buf.end(); entry++) {
+    UpdateWithTime(
+      entry->first,
+      entry->second.gyroAngle,
+      entry->second.leftDistance,
+      entry->second.rightDistance
+    );
+  }
 }
 
 Pose2d DifferentialDrivePoseEstimator::Update(const Rotation2d& gyroAngle,
@@ -105,13 +134,9 @@ Pose2d DifferentialDrivePoseEstimator::Update(const Rotation2d& gyroAngle,
 Pose2d DifferentialDrivePoseEstimator::UpdateWithTime(
     units::second_t currentTime, const Rotation2d& gyroAngle,
     units::meter_t leftDistance, units::meter_t rightDistance) {
-  m_poseBuffer.AddSample(currentTime, GetEstimatedPosition());
-
   m_odometry.Update(gyroAngle, leftDistance, rightDistance);
 
-  m_prevGyroAngle = gyroAngle;
-  m_prevLeftDistance = leftDistance;
-  m_prevRightDistance = rightDistance;
+  m_poseBuffer.AddSample(currentTime, {m_kinematics, GetEstimatedPosition(), gyroAngle, leftDistance, rightDistance});
 
   return GetEstimatedPosition();
 }
