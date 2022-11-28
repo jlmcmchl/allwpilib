@@ -40,9 +40,7 @@ struct WPILIB_DLLEXPORT MecanumDriveWheelPositions {
    * @param other The other object.
    * @return Whether the two objects are equal.
    */
-  bool operator==(const MecanumDriveWheelPositions& other) const {
-    return this->frontLeft == other.frontLeft && this->frontRight == other.frontRight && this->rearLeft == other.rearLeft && this->rearRight == other.rearRight;
-  }
+  bool operator==(const MecanumDriveWheelPositions& other) const = default;
 
   /**
    * Checks inequality between this MecanumDriveWheelPositions and another object.
@@ -50,8 +48,6 @@ struct WPILIB_DLLEXPORT MecanumDriveWheelPositions {
    * @param other The other object.
    * @return Whether the two objects are not equal.
    */
-  bool operator!=(const MecanumDriveWheelPositions& other) const {
-    return this->frontLeft != other.frontLeft || this->frontRight != other.frontRight || this->rearLeft != other.rearLeft || this->rearRight != other.rearRight;
-  }
+  bool operator!=(const MecanumDriveWheelPositions& other) const = default;
 };
 }  // namespace frc

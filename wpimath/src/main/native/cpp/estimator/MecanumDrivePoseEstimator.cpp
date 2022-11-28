@@ -13,7 +13,7 @@ using namespace frc;
 
 
 frc::MecanumDrivePoseEstimator::InterpolationRecord 
-frc::MecanumDrivePoseEstimator::InterpolationRecord::Interpolate(InterpolationRecord endValue,
+frc::MecanumDrivePoseEstimator::InterpolationRecord::Interpolate(MecanumDriveKinematics &kinematics, InterpolationRecord endValue,
                                                  double i) const {
   if (i < 0) {
     return *this;
@@ -40,7 +40,7 @@ frc::MecanumDrivePoseEstimator::InterpolationRecord::Interpolate(InterpolationRe
     twist.dtheta = (gyro - gyroAngle).Radians();
 
 
-    return {kinematics, pose.Exp(twist), gyro, wheels_lerp}; 
+    return {pose.Exp(twist), gyro, wheels_lerp}; 
   }
 }
 
@@ -154,7 +154,7 @@ Pose2d frc::MecanumDrivePoseEstimator::UpdateWithTime(
     wheelPositions.rearRight
   };
 
-  m_poseBuffer.AddSample(currentTime, {m_kinematics, GetEstimatedPosition(), gyroAngle, internalWheelPositions});
+  m_poseBuffer.AddSample(currentTime, {GetEstimatedPosition(), gyroAngle, internalWheelPositions});
 
   return GetEstimatedPosition();
 }

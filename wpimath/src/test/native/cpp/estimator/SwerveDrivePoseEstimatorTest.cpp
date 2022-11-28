@@ -145,7 +145,7 @@ TEST(SwerveDrivePoseEstimatorTest, AccuracyFacingTrajectory) {
       },
       [&](frc::Trajectory::State& state) { return state.pose; },
       {0_m, 0_m, frc::Rotation2d{45_deg}}, {0_m, 0_m, frc::Rotation2d{45_deg}},
-      0.02_s, 0.1_s, 0.25_s, true, false);
+      0.02_s, 0.1_s, 0.25_s, true, true);
 }
 
 TEST(SwerveDrivePoseEstimatorTest, BadInitialPose) {
@@ -191,7 +191,7 @@ TEST(SwerveDrivePoseEstimatorTest, BadInitialPose) {
           },
           [&](frc::Trajectory::State& state) { return state.pose; },
           initial_pose, {0_m, 0_m, frc::Rotation2d{45_deg}}, 0.02_s, 0.1_s,
-          0.25_s, false, false);
+          0.25_s, false, true);
     }
   }
 }

@@ -11,7 +11,7 @@
 
 using namespace frc;
 
-DifferentialDrivePoseEstimator::InterpolationRecord DifferentialDrivePoseEstimator::InterpolationRecord::Interpolate(InterpolationRecord endValue,
+DifferentialDrivePoseEstimator::InterpolationRecord DifferentialDrivePoseEstimator::InterpolationRecord::Interpolate(DifferentialDriveKinematics &kinematics, InterpolationRecord endValue,
                                                  double i) const {
   if (i < 0) {
     return *this;
@@ -26,7 +26,7 @@ DifferentialDrivePoseEstimator::InterpolationRecord DifferentialDrivePoseEstimat
     twist.dtheta = (gyro - gyroAngle).Radians();
 
 
-    return {kinematics, pose.Exp(twist), wpi::Lerp(this->gyroAngle, endValue.gyroAngle, i), left, right}; 
+    return {pose.Exp(twist), wpi::Lerp(this->gyroAngle, endValue.gyroAngle, i), left, right}; 
   }
 }
 
@@ -136,7 +136,7 @@ Pose2d DifferentialDrivePoseEstimator::UpdateWithTime(
     units::meter_t leftDistance, units::meter_t rightDistance) {
   m_odometry.Update(gyroAngle, leftDistance, rightDistance);
 
-  m_poseBuffer.AddSample(currentTime, {m_kinematics, GetEstimatedPosition(), gyroAngle, leftDistance, rightDistance});
+  m_poseBuffer.AddSample(currentTime, {GetEstimatedPosition(), gyroAngle, leftDistance, rightDistance});
 
   return GetEstimatedPosition();
 }

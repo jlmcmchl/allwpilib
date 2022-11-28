@@ -286,14 +286,13 @@ class SwerveDrivePoseEstimator {
       internalModulePositions[i].angle = modulePositions[i].angle;
     }
 
-    m_poseBuffer.AddSample(currentTime, {m_kinematics, GetEstimatedPosition(), gyroAngle, internalModulePositions});
+    m_poseBuffer.AddSample(currentTime, {GetEstimatedPosition(), gyroAngle, internalModulePositions});
 
     return GetEstimatedPosition();
   }
 
  private:
   struct InterpolationRecord {
-    SwerveDriveKinematics<NumModules> &kinematics;
     Pose2d pose;
     Rotation2d gyroAngle;
     wpi::array<SwerveModulePosition, NumModules> modulePostions;
@@ -304,9 +303,7 @@ class SwerveDrivePoseEstimator {
      * @param other The other object.
      * @return Whether the two objects are equal.
      */
-    bool operator==(const InterpolationRecord& other) const {
-      return this->pose == other.pose && this->gyroAngle == other.gyroAngle && this->modulePostions == other.modulePostions;
-    }
+    bool operator==(const InterpolationRecord& other) const = default;
 
     /**
      * Checks inequality between this InterpolationRecord and another object.
@@ -314,9 +311,7 @@ class SwerveDrivePoseEstimator {
      * @param other The other object.
      * @return Whether the two objects are not equal.
      */
-    bool operator!=(const InterpolationRecord& other) const {
-      return this->pose != other.pose || this->gyroAngle != other.gyroAngle || this->modulePostions != other.modulePostions;
-    }
+    bool operator!=(const InterpolationRecord& other) const = default;
 
     /**
      * Interpolates between two InterpolationRecords.
@@ -326,7 +321,7 @@ class SwerveDrivePoseEstimator {
      *
      * @return The interpolated state.
      */
-    InterpolationRecord Interpolate(InterpolationRecord endValue, double i) const {
+    InterpolationRecord Interpolate(SwerveDriveKinematics<NumModules> &kinematics, InterpolationRecord endValue, double i) const {
       if (i < 0) {
         return *this;
       } else if (i > 1) {
@@ -349,8 +344,7 @@ class SwerveDrivePoseEstimator {
         auto twist = kinematics.ToTwist2d(wheels_delta);
         twist.dtheta = (gyro - gyroAngle).Radians();
 
-
-        return {kinematics, pose.Exp(twist), gyro, wheels_lerp}; 
+        return {pose.Exp(twist), gyro, wheels_lerp}; 
       }
     };
   };
@@ -360,7 +354,9 @@ class SwerveDrivePoseEstimator {
   wpi::array<double, 3> m_q{wpi::empty_array};
   Eigen::Matrix3d m_visionK = Eigen::Matrix3d::Zero();
 
-  TimeInterpolatableBuffer<InterpolationRecord> m_poseBuffer{1.5_s, [](const InterpolationRecord &start, const InterpolationRecord &end, double t) { return start.Interpolate(end, t);}};
+  TimeInterpolatableBuffer<InterpolationRecord> m_poseBuffer{1.5_s, [this](const InterpolationRecord &start, const InterpolationRecord &end, double t) {
+    return start.Interpolate(this->m_kinematics, end, t);
+  }};
 };
 
 extern template class EXPORT_TEMPLATE_DECLARE(WPILIB_DLLEXPORT)

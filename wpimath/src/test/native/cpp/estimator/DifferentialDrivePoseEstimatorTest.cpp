@@ -155,7 +155,7 @@ TEST(DifferentialDrivePoseEstimatorTest, Accuracy) {
       },
       [&](frc::Trajectory::State& state) { return state.pose; },
       trajectory.InitialPose(), {0_m, 0_m, frc::Rotation2d{45_deg}}, 0.02_s,
-      0.1_s, 0.25_s, true, false);
+      0.1_s, 0.25_s, true, true);
 }
 
 TEST(DifferentialDrivePoseEstimatorTest, BadInitialPose) {
@@ -193,7 +193,7 @@ TEST(DifferentialDrivePoseEstimatorTest, BadInitialPose) {
           },
           [&](frc::Trajectory::State& state) { return state.pose; },
           initial_pose, {0_m, 0_m, frc::Rotation2d{45_deg}}, 0.02_s, 0.1_s,
-          0.25_s, true, false);
+          0.25_s, false, true);
     }
   }
 }
