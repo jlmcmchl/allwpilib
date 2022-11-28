@@ -4,6 +4,7 @@
 
 #include <limits>
 #include <random>
+#include <tuple>
 
 #include "frc/estimator/MecanumDrivePoseEstimator.h"
 #include "frc/geometry/Pose2d.h"
@@ -33,6 +34,7 @@ void testFollowTrajectory(
   units::second_t t = 0_s;
 
   std::vector<std::pair<units::second_t, frc::Pose2d>> visionPoses;
+  std::vector<std::tuple<units::second_t, units::second_t, frc::Pose2d>> visionLog;
 
   double maxError = -std::numeric_limits<double>::max();
   double errorSum = 0;
@@ -61,6 +63,7 @@ void testFollowTrajectory(
       auto visionEntry = visionPoses.front();
       estimator.AddVisionMeasurement(visionEntry.second, visionEntry.first);
       visionPoses.erase(visionPoses.begin());
+      visionLog.push_back({t, visionEntry.first, visionEntry.second});
     }
 
     auto chassisSpeeds = chassisSpeedsGenerator(groundTruthState);
@@ -97,6 +100,19 @@ void testFollowTrajectory(
     errorSum += error;
 
     t += dt;
+  }
+
+  if (debug) {
+    fmt::print("apply_time, measured_time, vision_x, vision_y, vision_theta\n");
+
+    units::second_t apply_time;
+    units::second_t measure_time;
+    frc::Pose2d vision_pose;
+    for (auto record : visionLog) {
+      
+      std::tie(apply_time, measure_time, vision_pose) = record;
+      fmt::print("{}, {}, {}, {}, {}\n", apply_time.value(), measure_time.value(), vision_pose.X().value(), vision_pose.Y().value(), vision_pose.Rotation().Radians().value());
+    }
   }
 
   EXPECT_NEAR(endingPose.X().value(),
@@ -139,7 +155,7 @@ TEST(MecanumDrivePoseEstimatorTest, AccuracyFacingTrajectory) {
       },
       [&](frc::Trajectory::State& state) { return state.pose; },
       trajectory.InitialPose(), {0_m, 0_m, frc::Rotation2d{45_deg}}, 0.02_s,
-      0.1_s, 0.25_s, true, true);
+      0.1_s, 0.25_s, true, false);
 }
 
 TEST(MecanumDrivePoseEstimatorTest, BadInitialPose) {
@@ -181,7 +197,7 @@ TEST(MecanumDrivePoseEstimatorTest, BadInitialPose) {
           },
           [&](frc::Trajectory::State& state) { return state.pose; },
           initial_pose, {0_m, 0_m, frc::Rotation2d{45_deg}}, 0.02_s, 0.1_s,
-          0.25_s, false, true);
+          0.25_s, false, false);
     }
   }
 }

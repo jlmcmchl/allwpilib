@@ -5,6 +5,7 @@
 #include <limits>
 #include <random>
 #include <utility>
+#include <tuple>
 
 #include "frc/StateSpaceUtil.h"
 #include "frc/estimator/DifferentialDrivePoseEstimator.h"
@@ -41,6 +42,7 @@ void testFollowTrajectory(
   units::second_t t = 0_s;
 
   std::vector<std::pair<units::second_t, frc::Pose2d>> visionPoses;
+  std::vector<std::tuple<units::second_t, units::second_t, frc::Pose2d>> visionLog;
 
   double maxError = -std::numeric_limits<double>::max();
   double errorSum = 0;
@@ -71,6 +73,7 @@ void testFollowTrajectory(
       auto visionEntry = visionPoses.front();
       estimator.AddVisionMeasurement(visionEntry.second, visionEntry.first);
       visionPoses.erase(visionPoses.begin());
+      visionLog.push_back({t, visionEntry.first, visionEntry.second});
     }
 
     auto chassisSpeeds = chassisSpeedsGenerator(groundTruthState);
@@ -108,13 +111,16 @@ void testFollowTrajectory(
     t += dt;
   }
 
-  if (debug && false) {
-    fmt::print("time, vision_x, vision_y, vision_theta\n");
+  if (debug) {
+    fmt::print("apply_time, measured_time, vision_x, vision_y, vision_theta\n");
 
-    for (auto pose : visionPoses) {
-      fmt::print("{}, {}, {}, {}\n", pose.first.value(),
-                 pose.second.X().value(), pose.second.Y().value(),
-                 pose.second.Rotation().Radians().value());
+    units::second_t apply_time;
+    units::second_t measure_time;
+    frc::Pose2d vision_pose;
+    for (auto record : visionLog) {
+      
+      std::tie(apply_time, measure_time, vision_pose) = record;
+      fmt::print("{}, {}, {}, {}, {}\n", apply_time.value(), measure_time.value(), vision_pose.X().value(), vision_pose.Y().value(), vision_pose.Rotation().Radians().value());
     }
   }
 
@@ -155,7 +161,7 @@ TEST(DifferentialDrivePoseEstimatorTest, Accuracy) {
       },
       [&](frc::Trajectory::State& state) { return state.pose; },
       trajectory.InitialPose(), {0_m, 0_m, frc::Rotation2d{45_deg}}, 0.02_s,
-      0.1_s, 0.25_s, true, true);
+      0.1_s, 0.25_s, true, false);
 }
 
 TEST(DifferentialDrivePoseEstimatorTest, BadInitialPose) {
@@ -193,7 +199,7 @@ TEST(DifferentialDrivePoseEstimatorTest, BadInitialPose) {
           },
           [&](frc::Trajectory::State& state) { return state.pose; },
           initial_pose, {0_m, 0_m, frc::Rotation2d{45_deg}}, 0.02_s, 0.1_s,
-          0.25_s, false, true);
+          0.25_s, false, false);
     }
   }
 }

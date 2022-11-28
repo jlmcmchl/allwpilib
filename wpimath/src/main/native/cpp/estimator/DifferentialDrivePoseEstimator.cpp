@@ -26,7 +26,7 @@ DifferentialDrivePoseEstimator::InterpolationRecord DifferentialDrivePoseEstimat
     twist.dtheta = (gyro - gyroAngle).Radians();
 
 
-    return {pose.Exp(twist), wpi::Lerp(this->gyroAngle, endValue.gyroAngle, i), left, right}; 
+    return {pose.Exp(twist), gyro, left, right};
   }
 }
 
@@ -101,20 +101,17 @@ void DifferentialDrivePoseEstimator::AddVisionMeasurement(
                       units::meter_t{k_times_twist(1)},
                       units::radian_t{k_times_twist(2)}};
 
-  // Step 5: Apply scaled twist to the latest pose
-  auto estimatedPose = GetEstimatedPosition().Exp(scaledTwist);
-
-  // Step 6: Apply new pose to odometry
+  // Step 5: Apply new pose to odometry
   m_odometry.ResetPosition(sample.value().gyroAngle, sample.value().leftDistance,
-                           sample.value().rightDistance, estimatedPose);
+                           sample.value().rightDistance, sample.value().pose.Exp(scaledTwist));
 
   auto internal_buf = m_poseBuffer.GetInternalStructure();
 
-  auto upper_bound = std::lower_bound(
+  auto first_newer_record = std::lower_bound(
     internal_buf.begin(), internal_buf.end(), timestamp,
     [](const auto& pair, auto t) { return t > pair.first; });
 
-  for(auto entry = upper_bound; entry != internal_buf.end(); entry++) {
+  for(auto entry = first_newer_record + 1; entry != internal_buf.end(); entry++) {
     UpdateWithTime(
       entry->first,
       entry->second.gyroAngle,
@@ -135,6 +132,15 @@ Pose2d DifferentialDrivePoseEstimator::UpdateWithTime(
     units::second_t currentTime, const Rotation2d& gyroAngle,
     units::meter_t leftDistance, units::meter_t rightDistance) {
   m_odometry.Update(gyroAngle, leftDistance, rightDistance);
+
+  // fmt::print("odo, {}, {}, {}, {}, {}, {}\n",
+  //   gyroAngle.Radians(),
+  //   leftDistance,
+  //   rightDistance,
+  //   GetEstimatedPosition().X(),
+  //   GetEstimatedPosition().Y(),
+  //   GetEstimatedPosition().Rotation().Radians()
+  // );
 
   m_poseBuffer.AddSample(currentTime, {GetEstimatedPosition(), gyroAngle, leftDistance, rightDistance});
 

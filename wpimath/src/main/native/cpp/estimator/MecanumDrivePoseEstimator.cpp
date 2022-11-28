@@ -113,12 +113,9 @@ void frc::MecanumDrivePoseEstimator::AddVisionMeasurement(
                       units::meter_t{k_times_twist(1)},
                       units::radian_t{k_times_twist(2)}};
 
-  // Step 5: Apply scaled twist to the latest pose
-  auto estimatedPose = GetEstimatedPosition().Exp(scaledTwist);
-
   // Step 6: Apply new pose to odometry
   m_odometry.ResetPosition(sample.value().gyroAngle, sample.value().wheelPositions,
-                           estimatedPose);
+                           sample.value().pose.Exp(scaledTwist));
 
   auto internal_buf = m_poseBuffer.GetInternalStructure();
 

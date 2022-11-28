@@ -5,6 +5,7 @@
 #include <limits>
 #include <numbers>
 #include <random>
+#include <tuple>
 
 #include <fmt/format.h>
 
@@ -36,6 +37,7 @@ void testFollowTrajectory(
   units::second_t t = 0_s;
 
   std::vector<std::pair<units::second_t, frc::Pose2d>> visionPoses;
+  std::vector<std::tuple<units::second_t, units::second_t, frc::Pose2d>> visionLog;
 
   double maxError = -std::numeric_limits<double>::max();
   double errorSum = 0;
@@ -64,6 +66,7 @@ void testFollowTrajectory(
       auto visionEntry = visionPoses.front();
       estimator.AddVisionMeasurement(visionEntry.second, visionEntry.first);
       visionPoses.erase(visionPoses.begin());
+      visionLog.push_back({t, visionEntry.first, visionEntry.second});
     }
 
     auto chassisSpeeds = chassisSpeedsGenerator(groundTruthState);
@@ -102,6 +105,19 @@ void testFollowTrajectory(
     t += dt;
   }
 
+  if (debug) {
+    fmt::print("apply_time, measured_time, vision_x, vision_y, vision_theta\n");
+
+    units::second_t apply_time;
+    units::second_t measure_time;
+    frc::Pose2d vision_pose;
+    for (auto record : visionLog) {
+      
+      std::tie(apply_time, measure_time, vision_pose) = record;
+      fmt::print("{}, {}, {}, {}, {}\n", apply_time.value(), measure_time.value(), vision_pose.X().value(), vision_pose.Y().value(), vision_pose.Rotation().Radians().value());
+    }
+  }
+
   EXPECT_NEAR(endingPose.X().value(),
               estimator.GetEstimatedPosition().X().value(), 0.05);
   EXPECT_NEAR(endingPose.Y().value(),
@@ -128,7 +144,7 @@ TEST(SwerveDrivePoseEstimatorTest, AccuracyFacingTrajectory) {
 
   frc::SwerveDrivePoseEstimator<4> estimator{
       kinematics,    frc::Rotation2d{},  {fl, fr, bl, br},
-      frc::Pose2d{}, {0.05, 0.05, 0.01}, {0.45, 0.45, 0.1}};
+      frc::Pose2d{}, {0.1, 0.1, 0.1}, {0.9, 0.9, 0.9}};
 
   frc::Trajectory trajectory = frc::TrajectoryGenerator::GenerateTrajectory(
       std::vector{frc::Pose2d{0_m, 0_m, 45_deg}, frc::Pose2d{3_m, 0_m, -90_deg},
@@ -145,7 +161,7 @@ TEST(SwerveDrivePoseEstimatorTest, AccuracyFacingTrajectory) {
       },
       [&](frc::Trajectory::State& state) { return state.pose; },
       {0_m, 0_m, frc::Rotation2d{45_deg}}, {0_m, 0_m, frc::Rotation2d{45_deg}},
-      0.02_s, 0.1_s, 0.25_s, true, true);
+      0.02_s, 0.1_s, 0.25_s, true, false);
 }
 
 TEST(SwerveDrivePoseEstimatorTest, BadInitialPose) {
@@ -159,9 +175,8 @@ TEST(SwerveDrivePoseEstimatorTest, BadInitialPose) {
   frc::SwerveModulePosition br;
 
   frc::SwerveDrivePoseEstimator<4> estimator{
-      kinematics,         frc::Rotation2d{},
-      {fl, fr, bl, br},   frc::Pose2d{-1_m, -1_m, frc::Rotation2d{-0.4_rad}},
-      {0.05, 0.05, 0.01}, {0.45, 0.45, 0.1}};
+      kinematics,    frc::Rotation2d{},  {fl, fr, bl, br},
+      frc::Pose2d{}, {0.1, 0.1, 0.1}, {0.9, 0.9, 0.9}};
 
   frc::Trajectory trajectory = frc::TrajectoryGenerator::GenerateTrajectory(
       std::vector{frc::Pose2d{0_m, 0_m, 45_deg}, frc::Pose2d{3_m, 0_m, -90_deg},
@@ -191,7 +206,7 @@ TEST(SwerveDrivePoseEstimatorTest, BadInitialPose) {
           },
           [&](frc::Trajectory::State& state) { return state.pose; },
           initial_pose, {0_m, 0_m, frc::Rotation2d{45_deg}}, 0.02_s, 0.1_s,
-          0.25_s, false, true);
+          0.25_s, false, false);
     }
   }
 }
