@@ -16,7 +16,8 @@ import edu.wpi.first.math.geometry.Twist2d;
  * whereas forward kinematics converts left and right component velocities into a linear and angular
  * chassis speed.
  */
-public class DifferentialDriveKinematics {
+public class DifferentialDriveKinematics
+    implements PositionKinematics<DifferentialDriveWheelPositions> {
   public final double trackWidthMeters;
 
   /**
@@ -64,14 +65,26 @@ public class DifferentialDriveKinematics {
    * distance deltas. This method is often used for odometry -- determining the robot's position on
    * the field using changes in the distance driven by each wheel on the robot.
    *
+   * @param distances The distances measured by the left and right encoders.
+   * @return The resulting Twist2d.
+   */
+  public Twist2d toTwist2d(DifferentialDriveWheelPositions distances) {
+    return new Twist2d(
+        (distances.leftMeters + distances.rightMeters) / 2,
+        0,
+        (distances.rightMeters - distances.leftMeters) / trackWidthMeters);
+  }
+
+  /**
+   * Performs forward kinematics to return the resulting Twist2d from the given left and right side
+   * distance deltas. This method is often used for odometry -- determining the robot's position on
+   * the field using changes in the distance driven by each wheel on the robot.
+   *
    * @param leftDistanceMeters The distance measured by the left side encoder.
    * @param rightDistanceMeters The distance measured by the right side encoder.
    * @return The resulting Twist2d.
    */
   public Twist2d toTwist2d(double leftDistanceMeters, double rightDistanceMeters) {
-    return new Twist2d(
-        (leftDistanceMeters + rightDistanceMeters) / 2,
-        0,
-        (rightDistanceMeters - leftDistanceMeters) / trackWidthMeters);
+    return toTwist2d(new DifferentialDriveWheelPositions(leftDistanceMeters, rightDistanceMeters));
   }
 }
