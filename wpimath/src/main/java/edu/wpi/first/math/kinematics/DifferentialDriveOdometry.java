@@ -4,11 +4,8 @@
 
 package edu.wpi.first.math.kinematics;
 
-import edu.wpi.first.math.MathSharedStore;
-import edu.wpi.first.math.MathUsageId;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.geometry.Twist2d;
 
 /**
  * Class for differential drive odometry. Odometry allows you to track the robot's position on the
@@ -20,14 +17,7 @@ import edu.wpi.first.math.geometry.Twist2d;
  * <p>It is important that you reset your encoders to zero before using this class. Any subsequent
  * pose resets also require the encoders to be reset to zero.
  */
-public class DifferentialDriveOdometry {
-  private Pose2d m_poseMeters;
-
-  private Rotation2d m_gyroOffset;
-  private Rotation2d m_previousAngle;
-
-  private double m_prevLeftDistance;
-  private double m_prevRightDistance;
+public class DifferentialDriveOdometry extends Odometry<DifferentialDriveWheelPositions> {
 
   /**
    * Constructs a DifferentialDriveOdometry object.
@@ -38,18 +28,16 @@ public class DifferentialDriveOdometry {
    * @param initialPoseMeters The starting position of the robot on the field.
    */
   public DifferentialDriveOdometry(
+      DifferentialDriveKinematics kinematics,
       Rotation2d gyroAngle,
       double leftDistanceMeters,
       double rightDistanceMeters,
       Pose2d initialPoseMeters) {
-    m_poseMeters = initialPoseMeters;
-    m_gyroOffset = m_poseMeters.getRotation().minus(gyroAngle);
-    m_previousAngle = initialPoseMeters.getRotation();
-
-    m_prevLeftDistance = leftDistanceMeters;
-    m_prevRightDistance = rightDistanceMeters;
-
-    MathSharedStore.reportUsage(MathUsageId.kOdometry_DifferentialDrive, 1);
+    super(
+        kinematics,
+        gyroAngle,
+        new DifferentialDriveWheelPositions(leftDistanceMeters, rightDistanceMeters),
+        initialPoseMeters);
   }
 
   /**
@@ -60,8 +48,11 @@ public class DifferentialDriveOdometry {
    * @param rightDistanceMeters The distance traveled by the right encoder.
    */
   public DifferentialDriveOdometry(
-      Rotation2d gyroAngle, double leftDistanceMeters, double rightDistanceMeters) {
-    this(gyroAngle, leftDistanceMeters, rightDistanceMeters, new Pose2d());
+      DifferentialDriveKinematics kinematics,
+      Rotation2d gyroAngle,
+      double leftDistanceMeters,
+      double rightDistanceMeters) {
+    this(kinematics, gyroAngle, leftDistanceMeters, rightDistanceMeters, new Pose2d());
   }
 
   /**
@@ -80,21 +71,10 @@ public class DifferentialDriveOdometry {
       double leftDistanceMeters,
       double rightDistanceMeters,
       Pose2d poseMeters) {
-    m_poseMeters = poseMeters;
-    m_previousAngle = poseMeters.getRotation();
-    m_gyroOffset = m_poseMeters.getRotation().minus(gyroAngle);
-
-    m_prevLeftDistance = leftDistanceMeters;
-    m_prevRightDistance = rightDistanceMeters;
-  }
-
-  /**
-   * Returns the position of the robot on the field.
-   *
-   * @return The pose of the robot (x and y are in meters).
-   */
-  public Pose2d getPoseMeters() {
-    return m_poseMeters;
+    super.resetPosition(
+        gyroAngle,
+        new DifferentialDriveWheelPositions(leftDistanceMeters, rightDistanceMeters),
+        poseMeters);
   }
 
   /**
@@ -109,22 +89,7 @@ public class DifferentialDriveOdometry {
    */
   public Pose2d update(
       Rotation2d gyroAngle, double leftDistanceMeters, double rightDistanceMeters) {
-    double deltaLeftDistance = leftDistanceMeters - m_prevLeftDistance;
-    double deltaRightDistance = rightDistanceMeters - m_prevRightDistance;
-
-    m_prevLeftDistance = leftDistanceMeters;
-    m_prevRightDistance = rightDistanceMeters;
-
-    double averageDeltaDistance = (deltaLeftDistance + deltaRightDistance) / 2.0;
-    var angle = gyroAngle.plus(m_gyroOffset);
-
-    var newPose =
-        m_poseMeters.exp(
-            new Twist2d(averageDeltaDistance, 0.0, angle.minus(m_previousAngle).getRadians()));
-
-    m_previousAngle = angle;
-
-    m_poseMeters = new Pose2d(newPose.getTranslation(), angle);
-    return m_poseMeters;
+    return super.update(
+        gyroAngle, new DifferentialDriveWheelPositions(leftDistanceMeters, rightDistanceMeters));
   }
 }

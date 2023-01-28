@@ -13,8 +13,9 @@ import org.junit.jupiter.api.Test;
 
 class DifferentialDriveOdometryTest {
   private static final double kEpsilon = 1E-9;
+  private final DifferentialDriveKinematics m_kinematics = new DifferentialDriveKinematics(1);
   private final DifferentialDriveOdometry m_odometry =
-      new DifferentialDriveOdometry(new Rotation2d(), 0, 0);
+      new DifferentialDriveOdometry(m_kinematics, new Rotation2d(), 0, 0);
 
   @Test
   void testOdometryWithEncoderDistances() {
