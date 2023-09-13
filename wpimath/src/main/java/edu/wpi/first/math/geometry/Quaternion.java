@@ -10,12 +10,14 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import edu.wpi.first.math.VecBuilder;
 import edu.wpi.first.math.Vector;
+import edu.wpi.first.math.interpolation.Interpolatable;
 import edu.wpi.first.math.numbers.N3;
 import java.util.Objects;
+import java.util.Random;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonAutoDetect(getterVisibility = JsonAutoDetect.Visibility.NONE)
-public class Quaternion {
+public class Quaternion implements Interpolatable<Quaternion> {
   // Scalar r in versor form
   private final double m_w;
 
@@ -173,17 +175,18 @@ public class Quaternion {
     }
   }
 
+  
+  public Quaternion exp(Quaternion adjustment) {
+    return adjustment.exp().times(this);
+  }
+
   /**
    * Matrix exponential of a quaternion
    * source: https://en.wikipedia.org/wiki/Quaternion#Exponential,_logarithm,_and_power_functions
    *
    * @return The Matrix exponential of this quaternion.
    */
-  public Quaternion exp(Quaternion adjustment) {
-    return adjustment._exp().times(this);
-  }
-
-  private Quaternion _exp() {
+  public Quaternion exp() {
     // q = s(scalar) + v(vector)
     // exp(s)
     var scalar = Math.exp(m_w);
@@ -205,18 +208,26 @@ public class Quaternion {
   }
 
   /**
-   * Inverse Matrix exponential (logarithm) of a quaternion
-   * source: https://en.wikipedia.org/wiki/Quaternion#Exponential,_logarithm,_and_power_functions
+   * Inverse Matrix exponential (logarithm) of a quaternion.
+   * 
+   * <p> This method is intended for use with unit quaternions. In this case, this method returns the rotation vector which transforms this quaternion into @param end via this.exp(rvec) <p>
+   * 
+   * @return The logarithm of this quaternion.
+   */
+  public Quaternion log(Quaternion end) {
+    return end.times(inverse()).log();
+  }
+
+  /**
+   * Inverse Matrix exponential (logarithm) of a quaternion.
+   * 
+   * <p> source: https://en.wikipedia.org/wiki/Quaternion#Exponential,_logarithm,_and_power_functions <p>
    * 
    * <p> For unit quaternions, this is equivalent to @see Quaternion#toRotationVector(). <p>
    * 
    * @return The logarithm of this quaternion.
    */
-  public Quaternion log(Quaternion end) {
-    return end.times(inverse())._log();
-  }
-
-  private Quaternion _log() {
+  public Quaternion log() {
     // q = s(scalar) + v(vector)
 
     // ||q||
@@ -304,5 +315,47 @@ public class Quaternion {
     }
 
     return VecBuilder.fill(coeff * getX(), coeff * getY(), coeff * getZ());
+  }
+
+  // 
+  public Quaternion pow(double t) {
+    // q^t = e^(t * ln(q))
+    return this.log().times(t).exp();
+  }
+
+  public Quaternion lerp(Quaternion other, double t) {
+    // Lerp(q0, q1, t) = (1 - t) * q0 + t * q1
+    return this.times(1 - t).plus(other.times(t));
+  }
+
+  public Quaternion slerp(Quaternion other, double t) {
+    // Slerp(q0, q1, t) = (q1 * q0^-1) ^ t * q0
+    return other.times(this.inverse()).pow(t).times(this);
+  }
+
+  @Override
+  public Quaternion interpolate(Quaternion endValue, double t) {
+    return slerp(endValue, t);
+  }
+
+  /**
+   * Returns a uniformly random unit quaternion.
+   * 
+   * <p> source: https://en.wikipedia.org/wiki/3D_rotation_group#Uniform_random_sampling <p>
+   * 
+   * @param rand the Random Number Generator.
+   * @return a uniformly sampled unit quaternion.
+   */
+  public static Quaternion randomUnit(Random rand) {
+    var u1 = rand.nextDouble();
+    var u2 = rand.nextDouble();
+    var u3 = rand.nextDouble();
+
+    var w = Math.sqrt(1 - u1) * Math.sin(2 * Math.PI * u2);
+    var x = Math.sqrt(1 - u1) * Math.cos(2 * Math.PI * u2);
+    var y = Math.sqrt(u1) * Math.sin(2 * Math.PI * u3);
+    var z = Math.sqrt(u1) * Math.cos(2 * Math.PI * u3);
+
+    return new Quaternion(w, x, y, z);
   }
 }
