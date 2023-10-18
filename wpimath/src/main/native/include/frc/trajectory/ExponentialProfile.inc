@@ -106,15 +106,22 @@ ExponentialProfile<Distance, Input>::CalculateProfileTiming(
   if (units::math::abs(u_dir * m_constraints.MaxVelocity() -
                        inflectionPoint.velocity) < epsilon) {
     auto solvableV = inflectionPoint.velocity;
-    if (units::math::abs(current.velocity) > m_constraints.MaxVelocity()) {
-      solvableV += u_dir * epsilon;
+    units::second_t t_to_solvable_v;
+    Distance_t x_at_solvable_v;
+    if (units::math::abs(current.velocity - inflectionPoint.velocity) < epsilon) {
+      t_to_solvable_v = 0_s;
+      x_at_solvable_v = current.position;
     } else {
-      solvableV -= u_dir * epsilon;
-    }
+      if (units::math::abs(current.velocity) > m_constraints.MaxVelocity()) {
+        solvableV += u_dir * epsilon;
+      } else {
+        solvableV -= u_dir * epsilon;
+      }
 
-    auto t_to_solvable_v =
-        ComputeTimeFromVelocity(solvableV, u, current.velocity);
-    auto x_at_solvable_v = ComputeDistanceFromVelocity(solvableV, u, current);
+      auto t_to_solvable_v =
+          ComputeTimeFromVelocity(solvableV, u, current.velocity);
+      auto x_at_solvable_v = ComputeDistanceFromVelocity(solvableV, u, current);
+    }
 
     inflectionT_forward =
         t_to_solvable_v + u_dir * (inflectionPoint.position - x_at_solvable_v) /
