@@ -8,6 +8,7 @@
 
 #include "frc/trajectory/ExponentialProfile.h"
 #include "units/math.h"
+#include "fmt/core.h"
 
 namespace frc {
 template <class Distance, class Input>
@@ -94,6 +95,9 @@ ExponentialProfile<Distance, Input>::CalculateProfileTiming(
 
   units::second_t inflectionT_forward;
 
+    // fmt::print("{}, {}, {}, {}, {}, {}, {}\n", current.position, current.velocity, goal.position, goal.velocity, inflectionPoint.position, inflectionPoint.velocity, input);
+
+
   // We need to handle 4 cases here:
   // - Approaching -maxVelocity from below
   // - Approaching -maxVelocity from above
@@ -109,12 +113,15 @@ ExponentialProfile<Distance, Input>::CalculateProfileTiming(
     units::second_t t_to_solvable_v;
     Distance_t x_at_solvable_v;
     if (units::math::abs(current.velocity - inflectionPoint.velocity) < epsilon) {
+      // fmt::print("A\n");
       t_to_solvable_v = 0_s;
       x_at_solvable_v = current.position;
     } else {
       if (units::math::abs(current.velocity) > m_constraints.MaxVelocity()) {
+        // fmt::print("B\n");
         solvableV += u_dir * epsilon;
       } else {
+        // fmt::print("C\n");
         solvableV -= u_dir * epsilon;
       }
 
@@ -122,6 +129,8 @@ ExponentialProfile<Distance, Input>::CalculateProfileTiming(
           ComputeTimeFromVelocity(solvableV, u, current.velocity);
       auto x_at_solvable_v = ComputeDistanceFromVelocity(solvableV, u, current);
     }
+
+    // fmt::print("{}, {}\n", t_to_solvable_v, x_at_solvable_v);
 
     inflectionT_forward =
         t_to_solvable_v + u_dir * (inflectionPoint.position - x_at_solvable_v) /
