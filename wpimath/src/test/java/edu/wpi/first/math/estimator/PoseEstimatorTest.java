@@ -14,7 +14,6 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Transform2d;
 import edu.wpi.first.math.geometry.Translation2d;
-import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.kinematics.Odometry;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.trajectory.Trajectory;
@@ -31,10 +30,10 @@ class PoseEstimatorTest {
   private final Vector<N3> stateNoiseStdDevs = stateStdDevs.div(50);
   private final Vector<N3> visionStdDevs = VecBuilder.fill(0.2, 0.2, 0.2);
 
-  private final double visionUpdatePeriod = 0.2;
-  private final double visionUpdateDelay = 0.1;
+  private static final double visionUpdatePeriod = 0.2;
+  private static final double visionUpdateDelay = 0.1;
 
-  private final double dt = 0.02;
+  private static final double dt = 0.02;
 
   @Test
   void testAccuracy() {
@@ -43,7 +42,11 @@ class PoseEstimatorTest {
     var odometry =
         new Odometry<>(
             kinematics, new Rotation2d(), new SE2KinematicPrimitive(new Pose2d()), new Pose2d());
+    var oldOdometry =
+        new Odometry<>(
+            kinematics, new Rotation2d(), new SE2KinematicPrimitive(new Pose2d()), new Pose2d());
 
+    var oldEstimator = new OldPoseEstimator<>(kinematics, oldOdometry, stateStdDevs, visionStdDevs);
     var estimator = new PoseEstimator<>(odometry, stateStdDevs, visionStdDevs);
 
     var trajectory =
@@ -58,6 +61,7 @@ class PoseEstimatorTest {
 
     testFollowTrajectory(
         kinematics,
+        oldEstimator,
         estimator,
         trajectory,
         trajectory.getInitialPose(),
@@ -77,8 +81,12 @@ class PoseEstimatorTest {
     var odometry =
         new Odometry<>(
             kinematics, new Rotation2d(), new SE2KinematicPrimitive(new Pose2d()), new Pose2d());
+    var oldOdometry =
+        new Odometry<>(
+            kinematics, new Rotation2d(), new SE2KinematicPrimitive(new Pose2d()), new Pose2d());
 
     var estimator = new PoseEstimator<>(odometry, stateStdDevs, visionStdDevs);
+    var oldEstimator = new OldPoseEstimator<>(kinematics, oldOdometry, stateStdDevs, visionStdDevs);
 
     var trajectory =
         TrajectoryGenerator.generateTrajectory(
@@ -105,6 +113,7 @@ class PoseEstimatorTest {
 
         testFollowTrajectory(
             kinematics,
+            oldEstimator,
             estimator,
             trajectory,
             initial_pose,
@@ -121,6 +130,7 @@ class PoseEstimatorTest {
 
   void testFollowTrajectory(
       final SE2Kinematics kinematics,
+      final OldPoseEstimator<SE2KinematicPrimitive> oldEstimator,
       final PoseEstimator<SE2KinematicPrimitive> estimator,
       final Trajectory trajectory,
       final Pose2d startingPose,
@@ -131,6 +141,10 @@ class PoseEstimatorTest {
       final boolean checkError,
       final Vector<N3> stateStdDevs,
       final Vector<N3> visionStdDevs) {
+    oldEstimator.resetPosition(
+        trajectory.getInitialPose().getRotation(),
+        new SE2KinematicPrimitive(trajectory.getInitialPose()),
+        startingPose);
     estimator.resetPosition(
         trajectory.getInitialPose().getRotation(),
         new SE2KinematicPrimitive(trajectory.getInitialPose()),
@@ -141,6 +155,15 @@ class PoseEstimatorTest {
     double t = 0.0;
 
     final TreeMap<Double, Pose2d> visionUpdateQueue = new TreeMap<>();
+
+    // System.out.printf(
+    //     "%s, %s, %s, %s, %s, %s%n",
+    //     oldEstimator.getEstimatedPosition().getX(),
+    //     oldEstimator.getEstimatedPosition().getY(),
+    //     oldEstimator.getEstimatedPosition().getRotation().getRadians(),
+    //     estimator.getEstimatedPosition().getX(),
+    //     estimator.getEstimatedPosition().getY(),
+    //     estimator.getEstimatedPosition().getRotation().getRadians());
 
     double maxError = Double.NEGATIVE_INFINITY;
     double errorSum = 0;
@@ -161,6 +184,9 @@ class PoseEstimatorTest {
       if (!visionUpdateQueue.isEmpty() && visionUpdateQueue.firstKey() + visionUpdateDelay < t) {
         var visionEntry = visionUpdateQueue.pollFirstEntry();
 
+        System.out.println("applying vision update");
+
+        oldEstimator.addVisionMeasurement(visionEntry.getValue(), visionEntry.getKey());
         estimator.addVisionMeasurement(visionEntry.getValue(), visionEntry.getKey());
       }
 
@@ -170,13 +196,13 @@ class PoseEstimatorTest {
               .getRotation()
               .plus(SamplingUtils.sampleRotation2d(rand, stateStdDevs.get(2, 0)));
 
-      var xHat =
-          estimator.updateWithTime(
-              t,
-              gyroAngle,
-              new SE2KinematicPrimitive(
-                  groundTruthState.poseMeters.exp(
-                      SamplingUtils.sampleTwist2d(rand, stateStdDevs))));
+      var primitive =
+          new SE2KinematicPrimitive(
+              groundTruthState.poseMeters.exp(SamplingUtils.sampleTwist2d(rand, stateStdDevs)));
+
+      oldEstimator.updateWithTime(t, gyroAngle, primitive);
+
+      var xHat = estimator.updateWithTime(t, gyroAngle, primitive);
 
       double error =
           groundTruthState.poseMeters.getTranslation().getDistance(xHat.getTranslation());
@@ -184,6 +210,32 @@ class PoseEstimatorTest {
         maxError = error;
       }
       errorSum += error;
+
+      // System.out.printf(
+      //     "%s, %s, %s, %s, %s, %s%n",
+      //     oldEstimator.getEstimatedPosition().getX(),
+      //     oldEstimator.getEstimatedPosition().getY(),
+      //     oldEstimator.getEstimatedPosition().getRotation().getRadians(),
+      //     estimator.getEstimatedPosition().getX(),
+      //     estimator.getEstimatedPosition().getY(),
+      //     estimator.getEstimatedPosition().getRotation().getRadians());
+
+      assertEquals(
+          oldEstimator.getEstimatedPosition().getX(),
+          estimator.getEstimatedPosition().getX(),
+          1e-9);
+      assertEquals(
+          oldEstimator.getEstimatedPosition().getY(),
+          estimator.getEstimatedPosition().getY(),
+          1e-9);
+      assertEquals(
+          oldEstimator.getEstimatedPosition().getRotation().getSin(),
+          estimator.getEstimatedPosition().getRotation().getSin(),
+          1e-9);
+      assertEquals(
+          oldEstimator.getEstimatedPosition().getRotation().getCos(),
+          estimator.getEstimatedPosition().getRotation().getCos(),
+          1e-9);
 
       t += dt;
     }
@@ -211,19 +263,13 @@ class PoseEstimatorTest {
     // is that all measurements affect the estimated pose. The alternative result is that only one
     // vision measurement affects the outcome. If that were the case, after 1000 measurements, the
     // estimated pose would converge to that measurement.
-    var kinematics = new DifferentialDriveKinematics(1);
+    var kinematics = new SE2Kinematics(dt);
+    var odometry =
+        new Odometry<>(
+            kinematics, new Rotation2d(), new SE2KinematicPrimitive(new Pose2d()), new Pose2d());
+    var estimator = new PoseEstimator<>(odometry, stateStdDevs, visionStdDevs);
 
-    var estimator =
-        new DifferentialDrivePoseEstimator(
-            kinematics,
-            new Rotation2d(),
-            0,
-            0,
-            new Pose2d(1, 2, Rotation2d.fromDegrees(270)),
-            VecBuilder.fill(0.02, 0.02, 0.01),
-            VecBuilder.fill(0.1, 0.1, 0.1));
-
-    estimator.updateWithTime(0, new Rotation2d(), 0, 0);
+    estimator.updateWithTime(0, new Rotation2d(), new SE2KinematicPrimitive(new Pose2d()));
 
     var visionMeasurements =
         new Pose2d[] {
@@ -258,22 +304,17 @@ class PoseEstimatorTest {
 
   @Test
   void testDiscardsStaleVisionMeasurements() {
-    var kinematics = new DifferentialDriveKinematics(1);
-    var estimator =
-        new DifferentialDrivePoseEstimator(
-            kinematics,
-            new Rotation2d(),
-            0,
-            0,
-            new Pose2d(),
-            VecBuilder.fill(0.1, 0.1, 0.1),
-            VecBuilder.fill(0.9, 0.9, 0.9));
+    var kinematics = new SE2Kinematics(dt);
+    var odometry =
+        new Odometry<>(
+            kinematics, new Rotation2d(), new SE2KinematicPrimitive(new Pose2d()), new Pose2d());
+    var estimator = new PoseEstimator<>(odometry, stateStdDevs, visionStdDevs);
 
     double time = 0;
 
     // Add enough measurements to fill up the buffer
     for (; time < 4; time += 0.02) {
-      estimator.updateWithTime(time, new Rotation2d(), 0, 0);
+      estimator.updateWithTime(time, new Rotation2d(), new SE2KinematicPrimitive(new Pose2d()));
     }
 
     var odometryPose = estimator.getEstimatedPosition();
