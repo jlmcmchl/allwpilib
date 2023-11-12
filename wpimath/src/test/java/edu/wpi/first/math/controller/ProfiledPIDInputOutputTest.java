@@ -7,7 +7,7 @@ package edu.wpi.first.math.controller;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import edu.wpi.first.math.trajectory.TrapezoidProfile;
+import edu.wpi.first.math.trajectory.TrapezoidCurve;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -16,7 +16,7 @@ class ProfiledPIDInputOutputTest {
 
   @BeforeEach
   void setUp() {
-    m_controller = new ProfiledPIDController(0, 0, 0, new TrapezoidProfile.Constraints(360, 180));
+    m_controller = new ProfiledPIDController(0, 0, 0, new TrapezoidCurve.Constraints(360, 180));
   }
 
   @Test
