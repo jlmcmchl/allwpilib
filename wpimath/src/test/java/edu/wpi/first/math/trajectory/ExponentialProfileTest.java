@@ -9,16 +9,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import java.util.List;
+
+import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import org.junit.jupiter.api.Test;
 
 class ExponentialProfileTest {
   private static final double kDt = 0.01;
   private static final SimpleMotorFeedforward feedforward =
       new SimpleMotorFeedforward(0, 2.5629, 0.43277);
-  private static final ExponentialProfile.Constraints constraints =
-      ExponentialProfile.Constraints.fromCharacteristics(12, 2.5629, 0.43277);
+  private static final ExponentialCurve.Constraints constraints =
+      ExponentialCurve.Constraints.fromCharacteristics(12, 2.5629, 0.43277);
 
   /**
    * Asserts "val1" is within "eps" of "val2".
@@ -34,14 +35,14 @@ class ExponentialProfileTest {
   }
 
   private static void assertNear(
-      ExponentialProfile.State val1, ExponentialProfile.State val2, double eps) {
+      MotionProfile.State val1, MotionProfile.State val2, double eps) {
     assertAll(
         () -> assertNear(val1.position, val2.position, eps),
         () -> assertNear(val1.position, val2.position, eps));
   }
 
-  private static ExponentialProfile.State checkDynamics(
-      ExponentialProfile profile, ExponentialProfile.State current, ExponentialProfile.State goal) {
+  private static MotionProfile.State checkDynamics(
+      ExponentialProfile profile, MotionProfile.State current, MotionProfile.State goal) {
     var next = profile.calculate(kDt, current, goal);
 
     var signal = feedforward.calculate(current.velocity, next.velocity, kDt);
@@ -55,8 +56,8 @@ class ExponentialProfileTest {
   void reachesGoal() {
     ExponentialProfile profile = new ExponentialProfile(constraints);
 
-    ExponentialProfile.State goal = new ExponentialProfile.State(10, 0);
-    ExponentialProfile.State state = new ExponentialProfile.State(0, 0);
+    MotionProfile.State goal = new MotionProfile.State(10, 0);
+    MotionProfile.State state = new MotionProfile.State();
 
     for (int i = 0; i < 450; ++i) {
       state = checkDynamics(profile, state, goal);
@@ -70,14 +71,14 @@ class ExponentialProfileTest {
   void posContinuousUnderVelChange() {
     ExponentialProfile profile = new ExponentialProfile(constraints);
 
-    ExponentialProfile.State goal = new ExponentialProfile.State(10, 0);
-    ExponentialProfile.State state = new ExponentialProfile.State(0, 0);
+    MotionProfile.State goal = new MotionProfile.State(10, 0);
+    MotionProfile.State state = new MotionProfile.State();
 
     for (int i = 0; i < 300; ++i) {
       if (i == 150) {
         profile =
             new ExponentialProfile(
-                ExponentialProfile.Constraints.fromStateSpace(9, constraints.A, constraints.B));
+                ExponentialCurve.Constraints.fromStateSpace(9, constraints.A, constraints.B));
       }
 
       state = checkDynamics(profile, state, goal);
@@ -85,20 +86,20 @@ class ExponentialProfileTest {
     assertEquals(state, goal);
   }
 
-  // Tests that decreasing the maximum velocity in the middle when it is already
-  // moving faster than the new max is handled correctly
+  // // Tests that decreasing the maximum velocity in the middle when it is already
+  // // moving faster than the new max is handled correctly
   @Test
   void posContinuousUnderVelChangeBackward() {
     ExponentialProfile profile = new ExponentialProfile(constraints);
 
-    ExponentialProfile.State goal = new ExponentialProfile.State(-10, 0);
-    ExponentialProfile.State state = new ExponentialProfile.State(0, 0);
+    MotionProfile.State goal = new MotionProfile.State(-10, 0);
+    MotionProfile.State state = new MotionProfile.State();
 
     for (int i = 0; i < 300; ++i) {
       if (i == 150) {
         profile =
             new ExponentialProfile(
-                ExponentialProfile.Constraints.fromStateSpace(9, constraints.A, constraints.B));
+                ExponentialCurve.Constraints.fromStateSpace(9, constraints.A, constraints.B));
       }
 
       state = checkDynamics(profile, state, goal);
@@ -109,10 +110,10 @@ class ExponentialProfileTest {
   // There is some somewhat tricky code for dealing with going backwards
   @Test
   void backwards() {
-    ExponentialProfile.State goal = new ExponentialProfile.State(-10, 0);
-    ExponentialProfile.State state = new ExponentialProfile.State(0, 0);
-
     ExponentialProfile profile = new ExponentialProfile(constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(-10, 0);
+    MotionProfile.State state = new MotionProfile.State();
 
     for (int i = 0; i < 400; ++i) {
       state = checkDynamics(profile, state, goal);
@@ -122,16 +123,16 @@ class ExponentialProfileTest {
 
   @Test
   void switchGoalInMiddle() {
-    ExponentialProfile.State goal = new ExponentialProfile.State(-10, 0);
-    ExponentialProfile.State state = new ExponentialProfile.State(0, 0);
-
     ExponentialProfile profile = new ExponentialProfile(constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(-10, 0);
+    MotionProfile.State state = new MotionProfile.State();
     for (int i = 0; i < 50; ++i) {
       state = checkDynamics(profile, state, goal);
     }
     assertNotEquals(state, goal);
 
-    goal = new ExponentialProfile.State(0.0, 0.0);
+    goal = new MotionProfile.State(0.0, 0.0);
     for (int i = 0; i < 100; ++i) {
       state = checkDynamics(profile, state, goal);
     }
@@ -141,42 +142,42 @@ class ExponentialProfileTest {
   // Checks to make sure that it hits top speed
   @Test
   void topSpeed() {
-    ExponentialProfile.State goal = new ExponentialProfile.State(40, 0);
-    ExponentialProfile.State state = new ExponentialProfile.State(0, 0);
-
     ExponentialProfile profile = new ExponentialProfile(constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(40, 0);
+    MotionProfile.State state = new MotionProfile.State();
     double maxSpeed = 0;
     for (int i = 0; i < 900; ++i) {
       state = checkDynamics(profile, state, goal);
       maxSpeed = Math.max(maxSpeed, state.velocity);
     }
 
-    assertNear(constraints.maxVelocity(), maxSpeed, 10e-5);
+    assertNear(constraints.MaxAchievableVelocity(0), maxSpeed, 10e-5);
     assertEquals(state, goal);
   }
 
   @Test
   void topSpeedBackward() {
-    ExponentialProfile.State goal = new ExponentialProfile.State(-40, 0);
-    ExponentialProfile.State state = new ExponentialProfile.State(0, 0);
-
     ExponentialProfile profile = new ExponentialProfile(constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(-40, 0);
+    MotionProfile.State state = new MotionProfile.State();
     double maxSpeed = 0;
     for (int i = 0; i < 900; ++i) {
       state = checkDynamics(profile, state, goal);
       maxSpeed = Math.min(maxSpeed, state.velocity);
     }
 
-    assertNear(-constraints.maxVelocity(), maxSpeed, 10e-5);
+    assertNear(-constraints.MaxAchievableVelocity(0), maxSpeed, 10e-5);
     assertEquals(state, goal);
   }
 
   @Test
   void largeInitialVelocity() {
-    ExponentialProfile.State goal = new ExponentialProfile.State(40, 0);
-    ExponentialProfile.State state = new ExponentialProfile.State(0, 8);
-
     ExponentialProfile profile = new ExponentialProfile(constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(40, 0);
+    MotionProfile.State state = new MotionProfile.State(0, 8);
     for (int i = 0; i < 900; ++i) {
       state = checkDynamics(profile, state, goal);
     }
@@ -186,10 +187,10 @@ class ExponentialProfileTest {
 
   @Test
   void largeNegativeInitialVelocity() {
-    ExponentialProfile.State goal = new ExponentialProfile.State(-40, 0);
-    ExponentialProfile.State state = new ExponentialProfile.State(0, -8);
-
     ExponentialProfile profile = new ExponentialProfile(constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(-40, 0);
+    MotionProfile.State state = new MotionProfile.State(0, -8);
     for (int i = 0; i < 900; ++i) {
       state = checkDynamics(profile, state, goal);
     }
@@ -199,14 +200,14 @@ class ExponentialProfileTest {
 
   @SuppressWarnings("PMD.TestClassWithoutTestCases")
   static class TestCase {
-    public final ExponentialProfile.State initial;
-    public final ExponentialProfile.State goal;
-    public final ExponentialProfile.State inflectionPoint;
+    public final MotionProfile.State initial;
+    public final MotionProfile.State goal;
+    public final MotionProfile.State inflectionPoint;
 
     TestCase(
-        ExponentialProfile.State initial,
-        ExponentialProfile.State goal,
-        ExponentialProfile.State inflectionPoint) {
+        MotionProfile.State initial,
+        MotionProfile.State goal,
+        MotionProfile.State inflectionPoint) {
       this.initial = initial;
       this.goal = goal;
       this.inflectionPoint = inflectionPoint;
@@ -218,103 +219,104 @@ class ExponentialProfileTest {
     List<TestCase> testCases =
         List.of(
             new TestCase(
-                new ExponentialProfile.State(0.0, -4),
-                new ExponentialProfile.State(0.75, -4),
-                new ExponentialProfile.State(1.3758, 4.4304)),
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(0.75, -4),
+                new MotionProfile.State(1.3758, 4.4304)),
             new TestCase(
-                new ExponentialProfile.State(0.0, -4),
-                new ExponentialProfile.State(1.4103, 4),
-                new ExponentialProfile.State(1.3758, 4.4304)),
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(1.4103, 4),
+                new MotionProfile.State(1.3758, 4.4304)),
             new TestCase(
-                new ExponentialProfile.State(0.6603, 4),
-                new ExponentialProfile.State(0.75, -4),
-                new ExponentialProfile.State(1.3758, 4.4304)),
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(0.75, -4),
+                new MotionProfile.State(1.3758, 4.4304)),
             new TestCase(
-                new ExponentialProfile.State(0.6603, 4),
-                new ExponentialProfile.State(1.4103, 4),
-                new ExponentialProfile.State(1.3758, 4.4304)),
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(1.4103, 4),
+                new MotionProfile.State(1.3758, 4.4304)),
             new TestCase(
-                new ExponentialProfile.State(0.0, -4),
-                new ExponentialProfile.State(0.5, -2),
-                new ExponentialProfile.State(0.4367, 3.7217)),
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(0.5, -2),
+                new MotionProfile.State(0.4367, 3.7217)),
             new TestCase(
-                new ExponentialProfile.State(0.0, -4),
-                new ExponentialProfile.State(0.546, 2),
-                new ExponentialProfile.State(0.4367, 3.7217)),
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(0.546, 2),
+                new MotionProfile.State(0.4367, 3.7217)),
             new TestCase(
-                new ExponentialProfile.State(0.6603, 4),
-                new ExponentialProfile.State(0.5, -2),
-                new ExponentialProfile.State(0.5560, -2.9616)),
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(0.5, -2),
+                new MotionProfile.State(0.5560, -2.9616)),
             new TestCase(
-                new ExponentialProfile.State(0.6603, 4),
-                new ExponentialProfile.State(0.546, 2),
-                new ExponentialProfile.State(0.5560, -2.9616)),
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(0.546, 2),
+                new MotionProfile.State(0.5560, -2.9616)),
             new TestCase(
-                new ExponentialProfile.State(0.0, -4),
-                new ExponentialProfile.State(-0.75, -4),
-                new ExponentialProfile.State(-0.7156, -4.4304)),
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(-0.75, -4),
+                new MotionProfile.State(-0.7156, -4.4304)),
             new TestCase(
-                new ExponentialProfile.State(0.0, -4),
-                new ExponentialProfile.State(-0.0897, 4),
-                new ExponentialProfile.State(-0.7156, -4.4304)),
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(-0.0897, 4),
+                new MotionProfile.State(-0.7156, -4.4304)),
             new TestCase(
-                new ExponentialProfile.State(0.6603, 4),
-                new ExponentialProfile.State(-0.75, -4),
-                new ExponentialProfile.State(-0.7156, -4.4304)),
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(-0.75, -4),
+                new MotionProfile.State(-0.7156, -4.4304)),
             new TestCase(
-                new ExponentialProfile.State(0.6603, 4),
-                new ExponentialProfile.State(-0.0897, 4),
-                new ExponentialProfile.State(-0.7156, -4.4304)),
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(-0.0897, 4),
+                new MotionProfile.State(-0.7156, -4.4304)),
             new TestCase(
-                new ExponentialProfile.State(0.0, -4),
-                new ExponentialProfile.State(-0.5, -4.5),
-                new ExponentialProfile.State(1.095, 4.314)),
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(-0.5, -4.5),
+                new MotionProfile.State(1.095, 4.314)),
             new TestCase(
-                new ExponentialProfile.State(0.0, -4),
-                new ExponentialProfile.State(1.0795, 4.5),
-                new ExponentialProfile.State(-0.5122, -4.351)),
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(1.0795, 4.5),
+                new MotionProfile.State(-0.5122, -4.351)),
             new TestCase(
-                new ExponentialProfile.State(0.6603, 4),
-                new ExponentialProfile.State(-0.5, -4.5),
-                new ExponentialProfile.State(1.095, 4.314)),
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(-0.5, -4.5),
+                new MotionProfile.State(1.095, 4.314)),
             new TestCase(
-                new ExponentialProfile.State(0.6603, 4),
-                new ExponentialProfile.State(1.0795, 4.5),
-                new ExponentialProfile.State(-0.5122, -4.351)),
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(1.0795, 4.5),
+                new MotionProfile.State(-0.5122, -4.351)),
             new TestCase(
-                new ExponentialProfile.State(0.0, -8),
-                new ExponentialProfile.State(0, 0),
-                new ExponentialProfile.State(-0.1384, 3.342)),
+                new MotionProfile.State(0.0, -8),
+                new MotionProfile.State(0, 0),
+                new MotionProfile.State(-0.1384, 3.342)),
             new TestCase(
-                new ExponentialProfile.State(0.0, -8),
-                new ExponentialProfile.State(-1, 0),
-                new ExponentialProfile.State(-0.562, -6.792)),
+                new MotionProfile.State(0.0, -8),
+                new MotionProfile.State(-1, 0),
+                new MotionProfile.State(-0.562, -6.792)),
             new TestCase(
-                new ExponentialProfile.State(0.0, 8),
-                new ExponentialProfile.State(1, 0),
-                new ExponentialProfile.State(0.562, 6.792)),
+                new MotionProfile.State(0.0, 8),
+                new MotionProfile.State(1, 0),
+                new MotionProfile.State(0.562, 6.792)),
             new TestCase(
-                new ExponentialProfile.State(0.0, 8),
-                new ExponentialProfile.State(-1, 0),
-                new ExponentialProfile.State(-0.785, -4.346)));
+                new MotionProfile.State(0.0, 8),
+                new MotionProfile.State(-1, 0),
+                new MotionProfile.State(-0.785, -4.346)));
 
     var profile = new ExponentialProfile(constraints);
 
     for (var testCase : testCases) {
-      var state = profile.calculateInflectionPoint(testCase.initial, testCase.goal);
+      var direction = profile.shouldFlipInput(testCase.initial, testCase.goal);
+      var state = constraints.throughState(testCase.initial, direction).intersection(constraints.throughState(testCase.goal, !direction));
       assertNear(testCase.inflectionPoint, state, 1e-3);
     }
   }
 
   @Test
   void timingToCurrent() {
-    ExponentialProfile.State goal = new ExponentialProfile.State(2, 0);
-    ExponentialProfile.State state = new ExponentialProfile.State(0, 0);
-
     ExponentialProfile profile = new ExponentialProfile(constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(2, 0);
+    MotionProfile.State state = new MotionProfile.State();
     for (int i = 0; i < 400; i++) {
       state = checkDynamics(profile, state, goal);
-      assertNear(profile.timeLeftUntil(state, state), 0, 2e-2);
+      assertNear(profile.timeRemaining(state, state), 0, 2e-2);
     }
   }
 
@@ -322,10 +324,10 @@ class ExponentialProfileTest {
   void timingToGoal() {
     ExponentialProfile profile = new ExponentialProfile(constraints);
 
-    ExponentialProfile.State goal = new ExponentialProfile.State(2, 0);
-    ExponentialProfile.State state = new ExponentialProfile.State(0, 0);
+    MotionProfile.State goal = new MotionProfile.State(-40, 0);
+    MotionProfile.State state = new MotionProfile.State();
 
-    double predictedTimeLeft = profile.timeLeftUntil(state, goal);
+    double predictedTimeLeft = profile.timeRemaining(state, goal);
     boolean reachedGoal = false;
     for (int i = 0; i < 400; i++) {
       state = checkDynamics(profile, state, goal);
@@ -344,10 +346,10 @@ class ExponentialProfileTest {
   void timingToNegativeGoal() {
     ExponentialProfile profile = new ExponentialProfile(constraints);
 
-    ExponentialProfile.State goal = new ExponentialProfile.State(-2, 0);
-    ExponentialProfile.State state = new ExponentialProfile.State(0, 0);
+    MotionProfile.State goal = new MotionProfile.State(-40, 0);
+    MotionProfile.State state = new MotionProfile.State();
 
-    double predictedTimeLeft = profile.timeLeftUntil(state, goal);
+    double predictedTimeLeft = profile.timeRemaining(state, goal);
     boolean reachedGoal = false;
     for (int i = 0; i < 400; i++) {
       state = checkDynamics(profile, state, goal);
