@@ -6,14 +6,14 @@ package edu.wpi.first.math.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import edu.wpi.first.math.trajectory.TrapezoidProfile;
+import edu.wpi.first.math.trajectory.TrapezoidCurve;
 import org.junit.jupiter.api.Test;
 
 class ProfiledPIDControllerTest {
   @Test
   void testStartFromNonZeroPosition() {
     ProfiledPIDController controller =
-        new ProfiledPIDController(1.0, 0.0, 0.0, new TrapezoidProfile.Constraints(1.0, 1.0));
+        new ProfiledPIDController(1.0, 0.0, 0.0, new TrapezoidCurve.Constraints(1.0, 1.0));
 
     controller.reset(20);
 

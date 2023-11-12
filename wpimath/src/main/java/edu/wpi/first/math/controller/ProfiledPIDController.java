@@ -7,6 +7,7 @@ package edu.wpi.first.math.controller;
 import edu.wpi.first.math.MathSharedStore;
 import edu.wpi.first.math.MathUsageId;
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.trajectory.TrapezoidCurve;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.util.sendable.SendableBuilder;
@@ -23,7 +24,7 @@ public class ProfiledPIDController implements Sendable {
   private double m_minimumInput;
   private double m_maximumInput;
 
-  private TrapezoidProfile.Constraints m_constraints;
+  private TrapezoidCurve.Constraints m_constraints;
   private TrapezoidProfile m_profile;
   private TrapezoidProfile.State m_goal = new TrapezoidProfile.State();
   private TrapezoidProfile.State m_setpoint = new TrapezoidProfile.State();
@@ -40,7 +41,7 @@ public class ProfiledPIDController implements Sendable {
    * @throws IllegalArgumentException if kd &lt; 0
    */
   public ProfiledPIDController(
-      double Kp, double Ki, double Kd, TrapezoidProfile.Constraints constraints) {
+      double Kp, double Ki, double Kd, TrapezoidCurve.Constraints constraints) {
     this(Kp, Ki, Kd, constraints, 0.02);
   }
 
@@ -59,7 +60,7 @@ public class ProfiledPIDController implements Sendable {
    */
   @SuppressWarnings("this-escape")
   public ProfiledPIDController(
-      double Kp, double Ki, double Kd, TrapezoidProfile.Constraints constraints, double period) {
+      double Kp, double Ki, double Kd, TrapezoidCurve.Constraints constraints, double period) {
     m_controller = new PIDController(Kp, Ki, Kd, period);
     m_constraints = constraints;
     m_profile = new TrapezoidProfile(m_constraints);
@@ -229,7 +230,7 @@ public class ProfiledPIDController implements Sendable {
    *
    * @param constraints Velocity and acceleration constraints for goal.
    */
-  public void setConstraints(TrapezoidProfile.Constraints constraints) {
+  public void setConstraints(TrapezoidCurve.Constraints constraints) {
     m_constraints = constraints;
     m_profile = new TrapezoidProfile(m_constraints);
   }
@@ -239,7 +240,7 @@ public class ProfiledPIDController implements Sendable {
    *
    * @return Velocity and acceleration constraints.
    */
-  public TrapezoidProfile.Constraints getConstraints() {
+  public TrapezoidCurve.Constraints getConstraints() {
     return m_constraints;
   }
 
@@ -393,7 +394,7 @@ public class ProfiledPIDController implements Sendable {
    * @return The controller's next output.
    */
   public double calculate(
-      double measurement, TrapezoidProfile.State goal, TrapezoidProfile.Constraints constraints) {
+      double measurement, TrapezoidProfile.State goal, TrapezoidCurve.Constraints constraints) {
     setConstraints(constraints);
     return calculate(measurement, goal);
   }
