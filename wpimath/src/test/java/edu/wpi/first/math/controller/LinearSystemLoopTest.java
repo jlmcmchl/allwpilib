@@ -17,6 +17,7 @@ import edu.wpi.first.math.system.LinearSystem;
 import edu.wpi.first.math.system.LinearSystemLoop;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
+import edu.wpi.first.math.trajectory.TrapezoidCurve;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
@@ -51,23 +52,26 @@ class LinearSystemLoopTest {
   @Test
   void testStateSpaceEnabled() {
     m_loop.reset(VecBuilder.fill(0, 0));
-    Matrix<N2, N1> references = VecBuilder.fill(2.0, 0.0);
-    var constraints = new TrapezoidProfile.Constraints(4, 3);
-    m_loop.setNextR(references);
 
-    TrapezoidProfile profile;
-    TrapezoidProfile.State state;
+    var constraints = new TrapezoidCurve.Constraints(4, 3);
+    TrapezoidProfile profile = new TrapezoidProfile(constraints);
+    TrapezoidProfile.State state = new TrapezoidProfile.State();
+    TrapezoidProfile.State reference = new TrapezoidProfile.State(2, 0);
+
     for (int i = 0; i < 1000; i++) {
-      profile = new TrapezoidProfile(constraints);
       state =
           profile.calculate(
               kDt,
-              new TrapezoidProfile.State(m_loop.getXHat(0), m_loop.getXHat(1)),
-              new TrapezoidProfile.State(references.get(0, 0), references.get(1, 0)));
+              state,
+              reference);
       m_loop.setNextR(VecBuilder.fill(state.position, state.velocity));
+
+      System.out.printf("%s, %s, %s, %s, %s, %s, %s, ", i * kDt, state.position, state.velocity, reference.position, reference.velocity, m_loop.getXHat(0), m_loop.getXHat(1));
 
       updateTwoState(m_plant, m_loop, (random.nextGaussian()) * kPositionStddev);
       var u = m_loop.getU(0);
+
+      System.out.printf("%s%n", u);
 
       assertTrue(u >= -12.1 && u <= 12.1, "U out of bounds! Got " + u);
     }
