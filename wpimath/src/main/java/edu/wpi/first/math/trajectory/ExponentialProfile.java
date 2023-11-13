@@ -39,7 +39,9 @@ public class ExponentialProfile extends MotionProfile<ExponentialCurve> {
     super(constraints, constraints);
   }
 
-  public ExponentialProfile(ExponentialCurve.Constraints acceleratingConstraints, ExponentialCurve.Constraints brakingConstraints) {
+  public ExponentialProfile(
+      ExponentialCurve.Constraints acceleratingConstraints,
+      ExponentialCurve.Constraints brakingConstraints) {
     super(acceleratingConstraints, brakingConstraints);
   }
 }

@@ -9,7 +9,9 @@ public class ConstrainedExponentialProfile extends MotionProfile<ConstrainedExpo
     super(constraints, constraints);
   }
 
-  public ConstrainedExponentialProfile(ConstrainedExponentialCurve.Constraints acceleratingConstraints, ConstrainedExponentialCurve.Constraints brakingConstraints) {
+  public ConstrainedExponentialProfile(
+      ConstrainedExponentialCurve.Constraints acceleratingConstraints,
+      ConstrainedExponentialCurve.Constraints brakingConstraints) {
     super(acceleratingConstraints, brakingConstraints);
   }
 }

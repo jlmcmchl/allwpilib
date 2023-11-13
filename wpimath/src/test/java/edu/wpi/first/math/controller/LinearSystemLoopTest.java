@@ -59,19 +59,11 @@ class LinearSystemLoopTest {
     TrapezoidProfile.State reference = new TrapezoidProfile.State(2, 0);
 
     for (int i = 0; i < 1000; i++) {
-      state =
-          profile.calculate(
-              kDt,
-              state,
-              reference);
+      state = profile.calculate(kDt, state, reference);
       m_loop.setNextR(VecBuilder.fill(state.position, state.velocity));
-
-      System.out.printf("%s, %s, %s, %s, %s, %s, %s, ", i * kDt, state.position, state.velocity, reference.position, reference.velocity, m_loop.getXHat(0), m_loop.getXHat(1));
 
       updateTwoState(m_plant, m_loop, (random.nextGaussian()) * kPositionStddev);
       var u = m_loop.getU(0);
-
-      System.out.printf("%s%n", u);
 
       assertTrue(u >= -12.1 && u <= 12.1, "U out of bounds! Got " + u);
     }

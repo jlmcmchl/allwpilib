@@ -13,7 +13,8 @@ public class ExponentialCurve extends MotionCurve<ExponentialCurve> {
     m_input = input;
   }
 
-  public static class Constraints extends edu.wpi.first.math.trajectory.MotionCurve.Constraints<ExponentialCurve> {
+  public static class Constraints
+      extends edu.wpi.first.math.trajectory.MotionCurve.Constraints<ExponentialCurve> {
     public final double maxInput;
 
     public final double A;
@@ -79,7 +80,9 @@ public class ExponentialCurve extends MotionCurve<ExponentialCurve> {
 
     if (Math.abs(error) < 1e-9 * m_constraints.MaxAchievableVelocity(0)) {
       // if we're near instability, get pretty close and use an approximation
-      var nearVelocity = goal.velocity + Math.signum(initial_error) * 1e-9 * m_constraints.MaxAchievableVelocity(0);
+      var nearVelocity =
+          goal.velocity
+              + Math.signum(initial_error) * 1e-9 * m_constraints.MaxAchievableVelocity(0);
       var nearPosition = computeDistanceFromVelocity(nearVelocity);
       var timeNearby = timeToState(new State(nearPosition, nearVelocity));
 
@@ -114,10 +117,9 @@ public class ExponentialCurve extends MotionCurve<ExponentialCurve> {
         + (-B * u * t + (m_initialState.velocity + B * u / A) * (Math.exp(A * t) - 1)) / A;
   }
 
-
-    @Override
-    public double intersectionVelocity(ExponentialCurve other) {
-        var A = m_constraints.A;
+  @Override
+  public double intersectionVelocity(ExponentialCurve other) {
+    var A = m_constraints.A;
     var B = m_constraints.B;
     var u = m_input;
 
@@ -126,7 +128,8 @@ public class ExponentialCurve extends MotionCurve<ExponentialCurve> {
     var position_delta = other.m_initialState.position - m_initialState.position;
     var velocity_delta = other.m_initialState.velocity - m_initialState.velocity;
 
-    var scalar = (A * m_initialState.velocity + B * u) * (A * other.m_initialState.velocity - B * u);
+    var scalar =
+        (A * m_initialState.velocity + B * u) * (A * other.m_initialState.velocity - B * u);
     var power = -A / B / u * (A * position_delta - velocity_delta);
 
     var a = -A * A;
@@ -138,5 +141,5 @@ public class ExponentialCurve extends MotionCurve<ExponentialCurve> {
     }
 
     return U_dir * Math.sqrt(-c / a);
-    }
+  }
 }
