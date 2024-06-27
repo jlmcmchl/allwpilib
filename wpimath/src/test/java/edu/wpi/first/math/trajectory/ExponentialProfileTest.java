@@ -9,9 +9,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.List;
-
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class ExponentialProfileTest {
@@ -34,8 +33,7 @@ class ExponentialProfileTest {
         "Difference between " + val1 + " and " + val2 + " is greater than " + eps);
   }
 
-  private static void assertNear(
-      MotionProfile.State val1, MotionProfile.State val2, double eps) {
+  private static void assertNear(MotionProfile.State val1, MotionProfile.State val2, double eps) {
     assertAll(
         () -> assertNear(val1.position, val2.position, eps),
         () -> assertNear(val1.position, val2.position, eps));
@@ -303,7 +301,10 @@ class ExponentialProfileTest {
 
     for (var testCase : testCases) {
       var direction = profile.shouldFlipInput(testCase.initial, testCase.goal);
-      var state = constraints.throughState(testCase.initial, direction).intersection(constraints.throughState(testCase.goal, !direction));
+      var state =
+          constraints
+              .throughState(testCase.initial, direction)
+              .intersection(constraints.throughState(testCase.goal, !direction));
       assertNear(testCase.inflectionPoint, state, 1e-3);
     }
   }

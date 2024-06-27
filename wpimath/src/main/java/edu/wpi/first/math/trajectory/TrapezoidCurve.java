@@ -13,7 +13,8 @@ public class TrapezoidCurve extends MotionCurve<TrapezoidCurve> {
     m_acceleration = acceleration;
   }
 
-  public static class Constraints extends edu.wpi.first.math.trajectory.MotionCurve.Constraints<TrapezoidCurve> {
+  public static class Constraints
+      extends edu.wpi.first.math.trajectory.MotionCurve.Constraints<TrapezoidCurve> {
     public final double maxAcceleration;
 
     public Constraints(double acceleration) {
@@ -22,7 +23,7 @@ public class TrapezoidCurve extends MotionCurve<TrapezoidCurve> {
 
     public Constraints(double maxVelocity, double acceleration) {
       this.maxAcceleration = acceleration;
-      
+
       withMaxVelocity(maxVelocity);
     }
 
@@ -67,14 +68,16 @@ public class TrapezoidCurve extends MotionCurve<TrapezoidCurve> {
 
   @Override
   public double intersectionVelocity(TrapezoidCurve other) {
-      double positionDifference = other.m_initialState.position - m_initialState.position;
-      double velocitySum = m_initialState.velocity * m_initialState.velocity + other.m_initialState.velocity * other.m_initialState.velocity;
-  
-      double sqrtTerm = Math.sqrt(m_acceleration * positionDifference + velocitySum / 2);
-  
-      // Calculate the sign based on the acceleration direction
-      double sign = Math.signum(m_acceleration);
-  
-      return sign * sqrtTerm;
+    double positionDifference = other.m_initialState.position - m_initialState.position;
+    double velocitySum =
+        m_initialState.velocity * m_initialState.velocity
+            + other.m_initialState.velocity * other.m_initialState.velocity;
+
+    double sqrtTerm = Math.sqrt(m_acceleration * positionDifference + velocitySum / 2);
+
+    // Calculate the sign based on the acceleration direction
+    double sign = Math.signum(m_acceleration);
+
+    return sign * sqrtTerm;
   }
 }

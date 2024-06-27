@@ -9,7 +9,9 @@ public class TrapezoidProfile extends MotionProfile<TrapezoidCurve> {
     super(constraints, constraints);
   }
 
-  public TrapezoidProfile(TrapezoidCurve.Constraints acceleratingConstraints, TrapezoidCurve.Constraints brakingConstraints) {
+  public TrapezoidProfile(
+      TrapezoidCurve.Constraints acceleratingConstraints,
+      TrapezoidCurve.Constraints brakingConstraints) {
     super(acceleratingConstraints, brakingConstraints);
   }
 }

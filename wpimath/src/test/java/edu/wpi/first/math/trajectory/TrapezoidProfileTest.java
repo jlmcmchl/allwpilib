@@ -13,8 +13,8 @@ import org.junit.jupiter.api.Test;
 
 class TrapezoidProfileTest {
   private static final double kDt = 0.01;
-  private static final TrapezoidCurve.Constraints m_constraints = new TrapezoidCurve.Constraints(0.75).withMaxVelocity(1.75);
-
+  private static final TrapezoidCurve.Constraints m_constraints =
+      new TrapezoidCurve.Constraints(0.75).withMaxVelocity(1.75);
 
   /**
    * Asserts "val1" is less than or equal to "val2".
@@ -55,7 +55,10 @@ class TrapezoidProfileTest {
   }
 
   private static MotionProfile.State checkDynamics(
-      TrapezoidProfile profile, TrapezoidCurve.Constraints constraints, MotionProfile.State current, MotionProfile.State goal) {
+      TrapezoidProfile profile,
+      TrapezoidCurve.Constraints constraints,
+      MotionProfile.State current,
+      MotionProfile.State goal) {
     var next = profile.calculate(kDt, current, goal);
 
     var velocity_delta = next.velocity - current.velocity;
@@ -64,8 +67,14 @@ class TrapezoidProfileTest {
 
     // System.out.printf("%s, %s, %s%n", next.position, next.velocity, accel);
     assertAll(
-        () -> assertLessThanOrNear(m_constraints.maxAcceleration, Math.abs(accel), 1e-9),
-        () -> assertLessThanOrNear(m_constraints.maxVelocity, Math.abs(next.velocity), 1e-9));
+        () -> assertLessThanOrNear(constraints.maxAcceleration, Math.abs(accel), 1e-9),
+        () -> {
+          if (Math.abs(current.velocity) <= constraints.maxVelocity) {
+            assertLessThanOrNear(constraints.maxVelocity, Math.abs(next.velocity), 1e-9);
+          }
+        });
+
+    assertLessThanOrNear(constraints.maxAcceleration, Math.abs(accel), 1e-9);
 
     return next;
   }
@@ -80,6 +89,36 @@ class TrapezoidProfileTest {
       state = checkDynamics(profile, m_constraints, state, goal);
     }
     assertEquals(goal, state);
+  }
+
+  @Test
+  void sandbox() {
+    var constraints = new TrapezoidCurve.Constraints(0.75).withMaxVelocity(0.75);
+    TrapezoidProfile profile = new TrapezoidProfile(constraints);
+    MotionProfile.State goal = new MotionProfile.State(0, 0);
+    MotionProfile.State state = new MotionProfile.State(-1.125, -0.75);
+
+    checkDynamics(profile, constraints, state, goal);
+  }
+
+  @Test
+  void sandbox2() {
+    var constraints = new TrapezoidCurve.Constraints(4, 3);
+    TrapezoidProfile profile = new TrapezoidProfile(constraints);
+    MotionProfile.State goal = new MotionProfile.State(2, 0);
+    MotionProfile.State state = new MotionProfile.State(0.57374640548276, 4.052326119576375);
+
+    checkDynamics(profile, constraints, state, goal);
+  }
+
+  @Test
+  void sandbox3() {
+    var constraints = new TrapezoidCurve.Constraints(4, 3);
+    TrapezoidProfile profile = new TrapezoidProfile(constraints);
+    MotionProfile.State goal = new MotionProfile.State(2, 0);
+    MotionProfile.State state = new MotionProfile.State(0.5685415824511675, 4.04638924467208);
+
+    checkDynamics(profile, constraints, state, goal);
   }
 
   // Tests that decreasing the maximum velocity in the middle when it is already
@@ -124,19 +163,15 @@ class TrapezoidProfileTest {
     MotionProfile.State goal = new MotionProfile.State(-2, 0);
     MotionProfile.State state = new MotionProfile.State();
 
-    // System.out.printf("%s, %s%n", state.position, state.velocity);
+    for (int i = 0; i < 750; ++i) {
+      if (i == 200) {
+        assertNotEquals(state, goal);
+        goal = new MotionProfile.State();
+      }
 
-    for (int i = 0; i < 200; ++i) {
       state = checkDynamics(profile, constraints, state, goal);
-      // System.out.printf("%s, %s%n", state.position, state.velocity);
     }
-    assertNotEquals(state, goal);
 
-    goal = new MotionProfile.State();
-    for (int i = 0; i < 550; ++i) {
-      state = checkDynamics(profile, constraints, state, goal);
-      // System.out.printf("%s, %s%n", state.position, state.velocity);
-    }
     assertEquals(state, goal);
   }
 
@@ -163,8 +198,8 @@ class TrapezoidProfileTest {
 
   @Test
   void timingToCurrent() {
-    TrapezoidCurve.Constraints constraints = new
-  TrapezoidCurve.Constraints(0.75).withMaxVelocity(0.75);
+    TrapezoidCurve.Constraints constraints =
+        new TrapezoidCurve.Constraints(0.75).withMaxVelocity(0.75);
     TrapezoidProfile profile = new TrapezoidProfile(constraints);
     MotionProfile.State goal = new MotionProfile.State(4, 0);
     MotionProfile.State state = new MotionProfile.State();
@@ -177,8 +212,8 @@ class TrapezoidProfileTest {
 
   @Test
   void timingToGoal() {
-   TrapezoidCurve.Constraints constraints = new
-  TrapezoidCurve.Constraints(0.75).withMaxVelocity(0.75);
+    TrapezoidCurve.Constraints constraints =
+        new TrapezoidCurve.Constraints(0.75).withMaxVelocity(0.75);
     TrapezoidProfile profile = new TrapezoidProfile(constraints);
     MotionProfile.State goal = new MotionProfile.State(2, 0);
     MotionProfile.State state = new MotionProfile.State();
@@ -199,8 +234,8 @@ class TrapezoidProfileTest {
 
   @Test
   void timingToNegativeGoal() {
-    TrapezoidCurve.Constraints constraints = new
-  TrapezoidCurve.Constraints(0.75).withMaxVelocity(0.75);
+    TrapezoidCurve.Constraints constraints =
+        new TrapezoidCurve.Constraints(0.75).withMaxVelocity(0.75);
     TrapezoidProfile profile = new TrapezoidProfile(constraints);
     MotionProfile.State goal = new MotionProfile.State(-2, 0);
     MotionProfile.State state = new MotionProfile.State();

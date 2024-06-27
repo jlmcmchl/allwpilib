@@ -13,7 +13,7 @@ public class ConstrainedExponentialCurve extends MotionCurve<ConstrainedExponent
 
   private ConstrainedExponentialCurve(
       Constraints constraints, State switchingState, State initialState, boolean direction) {
-        m_constraints = constraints;
+    m_constraints = constraints;
     m_trapezoid = constraints.m_trapezoid.throughState(switchingState, direction);
     m_exponential = constraints.m_exponential.throughState(switchingState, direction);
     m_initialState = initialState;
@@ -27,7 +27,8 @@ public class ConstrainedExponentialCurve extends MotionCurve<ConstrainedExponent
     }
   }
 
-  public static class Constraints extends edu.wpi.first.math.trajectory.MotionCurve.Constraints<ConstrainedExponentialCurve> {
+  public static class Constraints
+      extends edu.wpi.first.math.trajectory.MotionCurve.Constraints<ConstrainedExponentialCurve> {
     private final TrapezoidCurve.Constraints m_trapezoid;
     private final ExponentialCurve.Constraints m_exponential;
 
@@ -113,10 +114,13 @@ public class ConstrainedExponentialCurve extends MotionCurve<ConstrainedExponent
   @Override
   public double intersectionVelocity(ConstrainedExponentialCurve second) {
     var v_last = m_switchingState.velocity;
-    var x_last = second.computeDistanceFromVelocity(v_last) - this.computeDistanceFromVelocity(v_last);
+    var x_last =
+        second.computeDistanceFromVelocity(v_last) - this.computeDistanceFromVelocity(v_last);
 
-
-    double v_current = m_direction ? -m_constraints.m_exponential.MaxAchievableVelocity(0) + 1e-9 : m_constraints.m_exponential.MaxAchievableVelocity(0) - 1e-9;
+    double v_current =
+        m_direction
+            ? -m_constraints.m_exponential.MaxAchievableVelocity(0) + 1e-9
+            : m_constraints.m_exponential.MaxAchievableVelocity(0) - 1e-9;
     var x_current =
         second.computeDistanceFromVelocity(v_current) - this.computeDistanceFromVelocity(v_current);
 
@@ -124,7 +128,8 @@ public class ConstrainedExponentialCurve extends MotionCurve<ConstrainedExponent
 
     while (Math.abs(v_current - v_last) > 1e-9 || Math.abs(x_current) > 1e-9) {
       var v_next = (v_last * x_current - v_current * x_last) / (x_current - x_last);
-      var x_next = second.computeDistanceFromVelocity(v_next) - this.computeDistanceFromVelocity(v_next);
+      var x_next =
+          second.computeDistanceFromVelocity(v_next) - this.computeDistanceFromVelocity(v_next);
       v_last = v_current;
       x_last = x_current;
       v_current = v_next;

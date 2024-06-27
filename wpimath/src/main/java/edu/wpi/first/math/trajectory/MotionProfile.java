@@ -40,7 +40,9 @@ public class MotionProfile<T extends MotionCurve<T>> {
     }
   }
 
-  public MotionProfile(MotionCurve.Constraints<T> firstCurveConstraints, MotionCurve.Constraints<T> secondCurveConstraints) {
+  public MotionProfile(
+      MotionCurve.Constraints<T> firstCurveConstraints,
+      MotionCurve.Constraints<T> secondCurveConstraints) {
     m_firstCurveConstraints = firstCurveConstraints;
     m_secondCurveConstraints = secondCurveConstraints;
     m_maxVelocity =
@@ -49,13 +51,16 @@ public class MotionProfile<T extends MotionCurve<T>> {
 
   public State calculate(double t, State current, State goal) {
     var direction = shouldFlipInput(current, goal);
-    
+
     var firstCurve = m_firstCurveConstraints.throughState(current, direction);
     var secondCurve = m_secondCurveConstraints.throughState(goal, !direction);
 
     var intersection = firstCurve.intersection(secondCurve);
 
-    if (Math.abs(current.velocity) >= m_maxVelocity) {
+    var maxVelocity = direction ? -m_maxVelocity : m_maxVelocity;
+
+    if (Math.abs(current.velocity) > m_maxVelocity
+        && Math.signum(current.velocity) == Math.signum(maxVelocity)) {
       firstCurve = m_firstCurveConstraints.throughState(current, !direction);
     } else {
       firstCurve = m_firstCurveConstraints.throughState(current, direction);
@@ -63,7 +68,7 @@ public class MotionProfile<T extends MotionCurve<T>> {
 
     secondCurve = m_secondCurveConstraints.throughState(intersection, !direction);
 
-    if (Math.abs(intersection.velocity) < m_maxVelocity && Math.abs(current.velocity) < m_maxVelocity) {
+    if (Math.abs(intersection.velocity) < m_maxVelocity) {
       var timeAccelerating = firstCurve.timeToState(intersection);
 
       if (timeAccelerating >= t) {
@@ -75,11 +80,9 @@ public class MotionProfile<T extends MotionCurve<T>> {
       if (timeAccelerating + timeDecelerating >= t) {
         return secondCurve.stateAtTime(t - timeAccelerating);
       }
-  
+
       return goal;
     }
-
-    var maxVelocity = direction ? -m_maxVelocity : m_maxVelocity;
 
     var firstIntersectionWithMaxVelocity =
         new State(firstCurve.computeDistanceFromVelocity(maxVelocity), maxVelocity);
@@ -93,7 +96,8 @@ public class MotionProfile<T extends MotionCurve<T>> {
     var secondIntersectionWithMaxVelocity =
         new State(secondCurve.computeDistanceFromVelocity(maxVelocity), maxVelocity);
 
-    secondCurve = m_secondCurveConstraints.throughState(secondIntersectionWithMaxVelocity, !direction);
+    secondCurve =
+        m_secondCurveConstraints.throughState(secondIntersectionWithMaxVelocity, !direction);
 
     var timeAtMaxVelocity =
         (secondIntersectionWithMaxVelocity.position - firstIntersectionWithMaxVelocity.position)
@@ -111,23 +115,12 @@ public class MotionProfile<T extends MotionCurve<T>> {
       return secondCurve.stateAtTime(t - (timeAccelerating + timeAtMaxVelocity));
     }
 
-    // System.out.printf("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s%n", 
-    //   maxVelocity,
-    //   intersection.position,
-    //   intersection.velocity,
-    //   firstIntersectionWithMaxVelocity.position, firstIntersectionWithMaxVelocity.velocity,
-    //   secondIntersectionWithMaxVelocity.position, secondIntersectionWithMaxVelocity.velocity,
-    //   timeAccelerating,
-    //   timeAtMaxVelocity,
-    //   timeDecelerating,
-    //   t);
-
     return goal;
   }
 
   public double timeRemaining(State current, State goal) {
     var direction = shouldFlipInput(current, goal);
-    
+
     var firstCurve = m_firstCurveConstraints.throughState(current, direction);
     var secondCurve = m_secondCurveConstraints.throughState(goal, !direction);
 
@@ -141,7 +134,8 @@ public class MotionProfile<T extends MotionCurve<T>> {
 
     secondCurve = m_secondCurveConstraints.throughState(intersection, !direction);
 
-    if (Math.abs(intersection.velocity) < m_maxVelocity && Math.abs(current.velocity) < m_maxVelocity) {
+    if (Math.abs(intersection.velocity) < m_maxVelocity
+        && Math.abs(current.velocity) < m_maxVelocity) {
       var timeAccelerating = firstCurve.timeToState(intersection);
 
       var timeDecelerating = secondCurve.timeToState(goal);
@@ -159,7 +153,8 @@ public class MotionProfile<T extends MotionCurve<T>> {
     var secondIntersectionWithMaxVelocity =
         new State(secondCurve.computeDistanceFromVelocity(maxVelocity), maxVelocity);
 
-    secondCurve = m_secondCurveConstraints.throughState(secondIntersectionWithMaxVelocity, !direction);
+    secondCurve =
+        m_secondCurveConstraints.throughState(secondIntersectionWithMaxVelocity, !direction);
 
     var timeAtMaxVelocity =
         (secondIntersectionWithMaxVelocity.position - firstIntersectionWithMaxVelocity.position)

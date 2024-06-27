@@ -3,7 +3,7 @@ package edu.wpi.first.math.trajectory;
 import edu.wpi.first.math.trajectory.MotionProfile.State;
 
 public abstract class MotionCurve<T extends MotionCurve<T>> {
-  public static abstract class Constraints<T extends MotionCurve<T>> {
+  public abstract static class Constraints<T extends MotionCurve<T>> {
     public double maxVelocity = Double.MAX_VALUE;
 
     public abstract T throughState(State state, boolean direction);
@@ -29,7 +29,7 @@ public abstract class MotionCurve<T extends MotionCurve<T>> {
 
   public abstract double computeDistanceFromTime(double t);
 
-  public abstract double intersectionVelocity(T other);  
+  public abstract double intersectionVelocity(T other);
 
   public State intersection(T other) {
     var velocity = intersectionVelocity(other);
