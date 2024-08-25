@@ -81,6 +81,8 @@
 	#include <fmt/format.h>
 #endif
 
+#include <gcem.hpp>
+
 //------------------------------
 //	STRING FORMATTER
 //------------------------------
@@ -182,9 +184,10 @@ namespace units
 	struct fmt::formatter<units::namespaceName::nameSingular ## _t> \
 		: fmt::formatter<double> \
 	{\
-		template <typename FormatContext>\
-		auto format(const units::namespaceName::nameSingular ## _t& obj,\
-								FormatContext& ctx) -> decltype(ctx.out()) \
+		template <typename FmtContext>\
+		auto format(\
+				const units::namespaceName::nameSingular ## _t& obj,\
+				FmtContext& ctx) const\
 		{\
 			auto out = ctx.out();\
 			out = fmt::formatter<double>::format(obj(), ctx);\
@@ -2803,10 +2806,10 @@ namespace units
 		 * @returns		new unit_t, raised to the given exponent
 		 */
 		template<int power, class UnitType, class = typename std::enable_if<traits::has_linear_scale<UnitType>::value, int>>
-		inline auto pow(const UnitType& value) noexcept -> unit_t<typename units::detail::power_of_unit<power, typename units::traits::unit_t_traits<UnitType>::unit_type>::type, typename units::traits::unit_t_traits<UnitType>::underlying_type, linear_scale>
+		inline constexpr auto pow(const UnitType& value) noexcept -> unit_t<typename units::detail::power_of_unit<power, typename units::traits::unit_t_traits<UnitType>::unit_type>::type, typename units::traits::unit_t_traits<UnitType>::underlying_type, linear_scale>
 		{
 			return unit_t<typename units::detail::power_of_unit<power, typename units::traits::unit_t_traits<UnitType>::unit_type>::type, typename units::traits::unit_t_traits<UnitType>::underlying_type, linear_scale>
-				(std::pow(value(), power));
+				(gcem::pow(value(), power));
 		}
 
 		/**
@@ -2879,9 +2882,10 @@ namespace units
 template <>
 struct fmt::formatter<units::dimensionless::dB_t> : fmt::formatter<double>
 {
-	template <typename FormatContext>
-	auto format(const units::dimensionless::dB_t& obj,
-							FormatContext& ctx) -> decltype(ctx.out())
+	template <typename FmtContext>
+	auto format(
+			const units::dimensionless::dB_t& obj,
+			FmtContext& ctx) const
 	{
 		auto out = ctx.out();
 		out = fmt::formatter<double>::format(obj(), ctx);
@@ -3406,7 +3410,7 @@ namespace units {
 		// the "_min" user-defined literal in time.h.
 
 		template<class UnitTypeLhs, class UnitTypeRhs>
-		UnitTypeLhs (min)(const UnitTypeLhs& lhs, const UnitTypeRhs& rhs)
+		constexpr UnitTypeLhs (min)(const UnitTypeLhs& lhs, const UnitTypeRhs& rhs)
 		{
 			static_assert(traits::is_convertible_unit_t<UnitTypeLhs, UnitTypeRhs>::value, "Unit types are not compatible.");
 			UnitTypeLhs r(rhs);
@@ -3414,7 +3418,7 @@ namespace units {
 		}
 
 		template<class UnitTypeLhs, class UnitTypeRhs>
-		UnitTypeLhs (max)(const UnitTypeLhs& lhs, const UnitTypeRhs& rhs)
+		constexpr UnitTypeLhs (max)(const UnitTypeLhs& lhs, const UnitTypeRhs& rhs)
 		{
 			static_assert(traits::is_convertible_unit_t<UnitTypeLhs, UnitTypeRhs>::value, "Unit types are not compatible.");
 			UnitTypeLhs r(rhs);

@@ -28,9 +28,16 @@ import org.ejml.dense.row.factory.DecompositionFactory_DDRM;
 @JsonAutoDetect(getterVisibility = JsonAutoDetect.Visibility.NONE)
 public class Rotation3d
     implements Interpolatable<Rotation3d>, ProtobufSerializable, StructSerializable {
+  /**
+   * A preallocated Rotation3d representing no rotation.
+   *
+   * <p>This exists to avoid allocations for common rotations.
+   */
+  public static final Rotation3d kZero = new Rotation3d();
+
   private final Quaternion m_q;
 
-  /** Constructs a Rotation3d with a default angle of 0 degrees. */
+  /** Constructs a Rotation3d representing no rotation. */
   public Rotation3d() {
     m_q = new Quaternion();
   }
@@ -415,11 +422,8 @@ public class Rotation3d
    */
   @Override
   public boolean equals(Object obj) {
-    if (obj instanceof Rotation3d) {
-      var other = (Rotation3d) obj;
-      return Math.abs(Math.abs(m_q.dot(other.m_q)) - m_q.norm() * other.m_q.norm()) < 1e-9;
-    }
-    return false;
+    return obj instanceof Rotation3d other
+        && Math.abs(Math.abs(m_q.dot(other.m_q)) - m_q.norm() * other.m_q.norm()) < 1e-9;
   }
 
   @Override

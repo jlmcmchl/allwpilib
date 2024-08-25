@@ -140,13 +140,9 @@ public class Quaternion implements ProtobufSerializable, StructSerializable {
    */
   @Override
   public boolean equals(Object obj) {
-    if (obj instanceof Quaternion) {
-      var other = (Quaternion) obj;
-
-      return Math.abs(dot(other) - norm() * other.norm()) < 1e-9
-          && Math.abs(norm() - other.norm()) < 1e-9;
-    }
-    return false;
+    return obj instanceof Quaternion other
+        && Math.abs(dot(other) - norm() * other.norm()) < 1e-9
+        && Math.abs(norm() - other.norm()) < 1e-9;
   }
 
   @Override
@@ -285,11 +281,12 @@ public class Quaternion implements ProtobufSerializable, StructSerializable {
    * @return The logarithm of this quaternion.
    */
   public Quaternion log() {
-    var scalar = Math.log(norm());
+    var norm = norm();
+    var scalar = Math.log(norm);
 
     var v_norm = Math.sqrt(getX() * getX() + getY() * getY() + getZ() * getZ());
 
-    var s_norm = getW() / norm();
+    var s_norm = getW() / norm;
 
     if (Math.abs(s_norm + 1) < 1e-9) {
       return new Quaternion(scalar, -Math.PI, 0, 0);

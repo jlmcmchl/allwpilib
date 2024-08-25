@@ -7,18 +7,29 @@ package edu.wpi.first.math.kinematics;
 import static edu.wpi.first.units.Units.Meters;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.interpolation.Interpolatable;
+import edu.wpi.first.math.kinematics.proto.DifferentialDriveWheelPositionsProto;
+import edu.wpi.first.math.kinematics.struct.DifferentialDriveWheelPositionsStruct;
 import edu.wpi.first.units.Distance;
 import edu.wpi.first.units.Measure;
 import java.util.Objects;
 
 /** Represents the wheel positions for a differential drive drivetrain. */
 public class DifferentialDriveWheelPositions
-    implements WheelPositions<DifferentialDriveWheelPositions> {
+    implements Interpolatable<DifferentialDriveWheelPositions> {
   /** Distance measured by the left side. */
   public double leftMeters;
 
   /** Distance measured by the right side. */
   public double rightMeters;
+
+  /** DifferentialDriveWheelPostions struct for serialization. */
+  public static final DifferentialDriveWheelPositionsStruct struct =
+      new DifferentialDriveWheelPositionsStruct();
+
+  /** DifferentialDriveWheelPostions struct for serialization. */
+  public static final DifferentialDriveWheelPositionsProto proto =
+      new DifferentialDriveWheelPositionsProto();
 
   /**
    * Constructs a DifferentialDriveWheelPositions.
@@ -43,12 +54,9 @@ public class DifferentialDriveWheelPositions
 
   @Override
   public boolean equals(Object obj) {
-    if (obj instanceof DifferentialDriveWheelPositions) {
-      DifferentialDriveWheelPositions other = (DifferentialDriveWheelPositions) obj;
-      return Math.abs(other.leftMeters - leftMeters) < 1E-9
-          && Math.abs(other.rightMeters - rightMeters) < 1E-9;
-    }
-    return false;
+    return obj instanceof DifferentialDriveWheelPositions other
+        && Math.abs(other.leftMeters - leftMeters) < 1E-9
+        && Math.abs(other.rightMeters - rightMeters) < 1E-9;
   }
 
   @Override
@@ -60,11 +68,6 @@ public class DifferentialDriveWheelPositions
   public String toString() {
     return String.format(
         "DifferentialDriveWheelPositions(Left: %.2f m, Right: %.2f m", leftMeters, rightMeters);
-  }
-
-  @Override
-  public DifferentialDriveWheelPositions copy() {
-    return new DifferentialDriveWheelPositions(leftMeters, rightMeters);
   }
 
   @Override

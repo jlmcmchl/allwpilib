@@ -10,6 +10,7 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import edu.wpi.first.math.MathSharedStore;
 import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.geometry.proto.Rotation2dProto;
 import edu.wpi.first.math.geometry.struct.Rotation2dStruct;
@@ -32,6 +33,55 @@ import java.util.Objects;
 @JsonAutoDetect(getterVisibility = JsonAutoDetect.Visibility.NONE)
 public class Rotation2d
     implements Interpolatable<Rotation2d>, ProtobufSerializable, StructSerializable {
+  /**
+   * A preallocated Rotation2d representing no rotation.
+   *
+   * <p>This exists to avoid allocations for common rotations.
+   */
+  public static final Rotation2d kZero = new Rotation2d();
+
+  /**
+   * A preallocated Rotation2d representing a clockwise rotation by π/2 rad (90°).
+   *
+   * <p>This exists to avoid allocations for common rotations.
+   */
+  public static final Rotation2d kCW_Pi_2 = new Rotation2d(-Math.PI / 2);
+
+  /**
+   * A preallocated Rotation2d representing a clockwise rotation by 90° (π/2 rad).
+   *
+   * <p>This exists to avoid allocations for common rotations.
+   */
+  public static final Rotation2d kCW_90deg = kCW_Pi_2;
+
+  /**
+   * A preallocated Rotation2d representing a counterclockwise rotation by π/2 rad (90°).
+   *
+   * <p>This exists to avoid allocations for common rotations.
+   */
+  public static final Rotation2d kCCW_Pi_2 = new Rotation2d(Math.PI / 2);
+
+  /**
+   * A preallocated Rotation2d representing a counterclockwise rotation by 90° (π/2 rad).
+   *
+   * <p>This exists to avoid allocations for common rotations.
+   */
+  public static final Rotation2d kCCW_90deg = kCCW_Pi_2;
+
+  /**
+   * A preallocated Rotation2d representing a counterclockwise rotation by π rad (180°).
+   *
+   * <p>This exists to avoid allocations for common rotations.
+   */
+  public static final Rotation2d kPi = new Rotation2d(Math.PI);
+
+  /**
+   * A preallocated Rotation2d representing a counterclockwise rotation by 180° (π rad).
+   *
+   * <p>This exists to avoid allocations for common rotations.
+   */
+  public static final Rotation2d k180deg = kPi;
+
   private final double m_value;
   private final double m_cos;
   private final double m_sin;
@@ -69,6 +119,8 @@ public class Rotation2d
     } else {
       m_sin = 0.0;
       m_cos = 1.0;
+      MathSharedStore.reportError(
+          "x and y components of Rotation2d are zero\n", Thread.currentThread().getStackTrace());
     }
     m_value = Math.atan2(m_sin, m_cos);
   }
@@ -188,6 +240,15 @@ public class Rotation2d
   }
 
   /**
+   * Returns the measure of the Rotation2d.
+   *
+   * @return The measure of the Rotation2d.
+   */
+  public Measure<Angle> getMeasure() {
+    return Radians.of(getRadians());
+  }
+
+  /**
    * Returns the radian value of the Rotation2d.
    *
    * @return The radian value of the Rotation2d.
@@ -258,11 +319,8 @@ public class Rotation2d
    */
   @Override
   public boolean equals(Object obj) {
-    if (obj instanceof Rotation2d) {
-      var other = (Rotation2d) obj;
-      return Math.hypot(m_cos - other.m_cos, m_sin - other.m_sin) < 1E-9;
-    }
-    return false;
+    return obj instanceof Rotation2d other
+        && Math.hypot(m_cos - other.m_cos, m_sin - other.m_sin) < 1E-9;
   }
 
   @Override

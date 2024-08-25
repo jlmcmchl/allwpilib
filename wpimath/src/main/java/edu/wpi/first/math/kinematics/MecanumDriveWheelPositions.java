@@ -7,6 +7,7 @@ package edu.wpi.first.math.kinematics;
 import static edu.wpi.first.units.Units.Meters;
 
 import edu.wpi.first.math.MathUtil;
+import edu.wpi.first.math.interpolation.Interpolatable;
 import edu.wpi.first.math.kinematics.proto.MecanumDriveWheelPositionsProto;
 import edu.wpi.first.math.kinematics.struct.MecanumDriveWheelPositionsStruct;
 import edu.wpi.first.units.Distance;
@@ -17,7 +18,7 @@ import java.util.Objects;
 
 /** Represents the wheel positions for a mecanum drive drivetrain. */
 public class MecanumDriveWheelPositions
-    implements WheelPositions<MecanumDriveWheelPositions>,
+    implements Interpolatable<MecanumDriveWheelPositions>,
         ProtobufSerializable,
         StructSerializable {
   /** Distance measured by the front left wheel. */
@@ -79,14 +80,11 @@ public class MecanumDriveWheelPositions
 
   @Override
   public boolean equals(Object obj) {
-    if (obj instanceof MecanumDriveWheelPositions) {
-      MecanumDriveWheelPositions other = (MecanumDriveWheelPositions) obj;
-      return Math.abs(other.frontLeftMeters - frontLeftMeters) < 1E-9
-          && Math.abs(other.frontRightMeters - frontRightMeters) < 1E-9
-          && Math.abs(other.rearLeftMeters - rearLeftMeters) < 1E-9
-          && Math.abs(other.rearRightMeters - rearRightMeters) < 1E-9;
-    }
-    return false;
+    return obj instanceof MecanumDriveWheelPositions other
+        && Math.abs(other.frontLeftMeters - frontLeftMeters) < 1E-9
+        && Math.abs(other.frontRightMeters - frontRightMeters) < 1E-9
+        && Math.abs(other.rearLeftMeters - rearLeftMeters) < 1E-9
+        && Math.abs(other.rearRightMeters - rearRightMeters) < 1E-9;
   }
 
   @Override
@@ -99,12 +97,6 @@ public class MecanumDriveWheelPositions
     return String.format(
         "MecanumDriveWheelPositions(Front Left: %.2f m, Front Right: %.2f m, "
             + "Rear Left: %.2f m, Rear Right: %.2f m)",
-        frontLeftMeters, frontRightMeters, rearLeftMeters, rearRightMeters);
-  }
-
-  @Override
-  public MecanumDriveWheelPositions copy() {
-    return new MecanumDriveWheelPositions(
         frontLeftMeters, frontRightMeters, rearLeftMeters, rearRightMeters);
   }
 

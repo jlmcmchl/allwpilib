@@ -6,6 +6,7 @@ plugins {
 evaluationDependsOn(':apriltag')
 evaluationDependsOn(':cameraserver')
 evaluationDependsOn(':cscore')
+evaluationDependsOn(':epilogue-runtime')
 evaluationDependsOn(':hal')
 evaluationDependsOn(':ntcore')
 evaluationDependsOn(':wpilibNewCommands')
@@ -68,6 +69,9 @@ doxygen {
     cppIncludeRoots << '../ntcore/build/generated/main/native/include/'
 
     if (project.hasProperty('docWarningsAsErrors')) {
+        // apriltag
+        exclude 'apriltag_pose.h'
+
         // Eigen
         exclude 'Eigen/**'
         exclude 'unsupported/**'
@@ -180,12 +184,10 @@ doxygen {
     warn_if_undocumented false
     warn_no_paramdoc true
 
-    //enable doxygen preprocessor expansion of WPI_DEPRECATED to fix MotorController docs
     enable_preprocessing true
     macro_expansion true
     expand_only_predef true
-    predefined "WPI_DEPRECATED(x)=[[deprecated(x)]]\"\\\n" +
-            "\"__cplusplus\"\\\n" +
+    predefined "__cplusplus\"\\\n" +
             "\"HAL_ENUM(name)=enum name : int32_t"
 
     if (project.hasProperty('docWarningsAsErrors')) {
@@ -216,16 +218,20 @@ task generateJavaDocs(type: Javadoc) {
     options.addBooleanOption("Xdoclint/package:" +
             // TODO: v Document these, then remove them from the list
             "-edu.wpi.first.hal," +
-            "-edu.wpi.first.hal.can," +
             "-edu.wpi.first.hal.simulation," +
             // TODO: ^ Document these, then remove them from the list
             "-edu.wpi.first.math.proto," +
+            "-edu.wpi.first.math.struct," +
             "-edu.wpi.first.math.controller.proto," +
             "-edu.wpi.first.math.controller.struct," +
             "-edu.wpi.first.math.geometry.proto," +
             "-edu.wpi.first.math.geometry.struct," +
             "-edu.wpi.first.math.kinematics.proto," +
             "-edu.wpi.first.math.kinematics.struct," +
+            "-edu.wpi.first.math.spline.proto," +
+            "-edu.wpi.first.math.spline.struct," +
+            "-edu.wpi.first.math.system.proto," +
+            "-edu.wpi.first.math.system.struct," +
             "-edu.wpi.first.math.system.plant.proto," +
             "-edu.wpi.first.math.system.plant.struct," +
             "-edu.wpi.first.math.trajectory.proto", true)
@@ -236,6 +242,7 @@ task generateJavaDocs(type: Javadoc) {
     source project(':apriltag').sourceSets.main.java
     source project(':cameraserver').sourceSets.main.java
     source project(':cscore').sourceSets.main.java
+    source project(':epilogue-runtime').sourceSets.main.java
     source project(':hal').sourceSets.main.java
     source project(':ntcore').sourceSets.main.java
     source project(':wpilibNewCommands').sourceSets.main.java
@@ -257,23 +264,7 @@ task generateJavaDocs(type: Javadoc) {
         // The second argument '-quiet' is a hack. The one parameter
         // addStringOption() doesn't work, so we add '-quiet', which is added
         // anyway by gradle. See https://github.com/gradle/gradle/issues/2354.
-        //
-        // See JDK-8200363 (https://bugs.openjdk.java.net/browse/JDK-8200363)
-        // for information about the nonstandard -Xwerror option. JDK 15+ has
-        // -Werror.
-        options.addStringOption('Xwerror', '-quiet')
-    }
-
-    if (JavaVersion.current().isJava11Compatible()) {
-        if (!JavaVersion.current().isJava12Compatible()) {
-            options.addBooleanOption('-no-module-directories', true)
-        }
-        doLast {
-            // This is a work-around for https://bugs.openjdk.java.net/browse/JDK-8211194. Can be removed once that issue is fixed on JDK's side
-            // Since JDK 11, package-list is missing from javadoc output files and superseded by element-list file, but a lot of external tools still need it
-            // Here we generate this file manually
-            new File(destinationDir, 'package-list').text = new File(destinationDir, 'element-list').text
-        }
+        options.addStringOption('Werror', '-quiet')
     }
 }
 

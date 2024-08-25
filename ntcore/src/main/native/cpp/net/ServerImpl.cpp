@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+#include <fmt/ranges.h>
 #include <wpi/Base64.h>
 #include <wpi/MessagePack.h>
 #include <wpi/SmallVector.h>
@@ -1816,7 +1817,8 @@ void ServerImpl::SetValue(ClientData* client, TopicData* topic,
   }
 
   for (auto&& tcd : topic->clients) {
-    if (tcd.second.sendMode != ValueSendMode::kDisabled) {
+    if (tcd.first != client &&
+        tcd.second.sendMode != ValueSendMode::kDisabled) {
       tcd.first->SendValue(topic, value, tcd.second.sendMode);
     }
   }

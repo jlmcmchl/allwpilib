@@ -88,6 +88,12 @@ class WPILIB_DLLEXPORT DifferentialDriveKinematics
     return ToTwist2d(end.left - start.left, end.right - start.right);
   }
 
+  DifferentialDriveWheelPositions Interpolate(
+      const DifferentialDriveWheelPositions& start,
+      const DifferentialDriveWheelPositions& end, double t) const override {
+    return start.Interpolate(end, t);
+  }
+
   /// Differential drive trackwidth.
   units::meter_t trackWidth;
 };

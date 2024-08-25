@@ -7,11 +7,13 @@
 #include <initializer_list>
 #include <span>
 
+#include <Eigen/Core>
 #include <wpi/SymbolExports.h>
 #include <wpi/json_fwd.h>
 
 #include "frc/geometry/Rotation2d.h"
 #include "units/length.h"
+#include "units/math.h"
 
 namespace frc {
 
@@ -49,6 +51,14 @@ class WPILIB_DLLEXPORT Translation2d {
   constexpr Translation2d(units::meter_t distance, const Rotation2d& angle);
 
   /**
+   * Constructs a Translation2d from the provided translation vector's X and Y
+   * components. The values are assumed to be in meters.
+   *
+   * @param vector The translation vector to represent.
+   */
+  explicit Translation2d(const Eigen::Vector2d& vector);
+
+  /**
    * Calculates the distance between two translations in 2D space.
    *
    * The distance between translations is defined as √((x₂−x₁)²+(y₂−y₁)²).
@@ -57,7 +67,9 @@ class WPILIB_DLLEXPORT Translation2d {
    *
    * @return The distance between the two translations.
    */
-  units::meter_t Distance(const Translation2d& other) const;
+  constexpr units::meter_t Distance(const Translation2d& other) const {
+    return units::math::hypot(other.m_x - m_x, other.m_y - m_y);
+  }
 
   /**
    * Returns the X component of the translation.
@@ -72,6 +84,13 @@ class WPILIB_DLLEXPORT Translation2d {
    * @return The Y component of the translation.
    */
   constexpr units::meter_t Y() const { return m_y; }
+
+  /**
+   * Returns a vector representation of this translation.
+   *
+   * @return A Vector representation of this translation.
+   */
+  constexpr Eigen::Vector2d ToVector() const;
 
   /**
    * Returns the norm, or distance from the origin to the translation.
@@ -106,6 +125,21 @@ class WPILIB_DLLEXPORT Translation2d {
    * @return The new rotated translation.
    */
   constexpr Translation2d RotateBy(const Rotation2d& other) const;
+
+  /**
+   * Rotates this translation around another translation in 2D space.
+   *
+   * <pre>
+   * [x_new]   [rot.cos, -rot.sin][x - other.x]   [other.x]
+   * [y_new] = [rot.sin,  rot.cos][y - other.y] + [other.y]
+   * </pre>
+   *
+   * @param other The other translation to rotate around.
+   * @param rot The rotation to rotate the translation by.
+   * @return The new rotated translation.
+   */
+  constexpr Translation2d RotateAround(const Translation2d& other,
+                                       const Rotation2d& rot) const;
 
   /**
    * Returns the sum of two translations in 2D space.
@@ -168,7 +202,7 @@ class WPILIB_DLLEXPORT Translation2d {
    * @param other The other object.
    * @return Whether the two objects are equal.
    */
-  bool operator==(const Translation2d& other) const;
+  constexpr bool operator==(const Translation2d& other) const;
 
   /**
    * Returns the nearest Translation2d from a collection of translations

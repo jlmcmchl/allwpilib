@@ -16,9 +16,9 @@ package edu.wpi.first.math.trajectory;
  * <pre><code>
  * ExponentialProfile.Constraints constraints =
  *   ExponentialProfile.Constraints.fromCharacteristics(kMaxV, kV, kA);
- * ExponentialProfile.State previousProfiledReference =
- *   new ExponentialProfile.State(initialReference, 0.0);
- * ExponentialProfile profile = new ExponentialProfile(constraints);
+ * MotionProfile.State previousProfiledReference =
+ *   new MotionProfile.State(initialReference, 0.0);
+ * ExponentialProfile profile = constraints.asMotionProfile();
  * </code></pre>
  *
  * <p>Run on update:
@@ -32,7 +32,7 @@ package edu.wpi.first.math.trajectory;
  * reference is within the constraints, `calculate()` returns the unprofiled reference unchanged.
  *
  * <p>Otherwise, a timer can be started to provide monotonic values for `calculate()` and to
- * determine when the profile has completed via `isFinished()`.
+ * determine when the profile has completed via `timeRemaining()`.
  */
 public class ExponentialProfile extends MotionProfile<ExponentialCurve> {
   public ExponentialProfile(ExponentialCurve.Constraints constraints) {
