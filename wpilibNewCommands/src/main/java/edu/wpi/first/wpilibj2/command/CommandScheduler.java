@@ -16,6 +16,7 @@ import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.RobotBase;
 import edu.wpi.first.wpilibj.RobotState;
 import edu.wpi.first.wpilibj.TimedRobot;
+import edu.wpi.first.wpilibj.Tracer;
 import edu.wpi.first.wpilibj.Watchdog;
 import edu.wpi.first.wpilibj.event.EventLoop;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
@@ -97,7 +98,13 @@ public final class CommandScheduler implements Sendable, AutoCloseable {
   private final List<Optional<Command>> m_toCancelInterruptors = new ArrayList<>();
   private final Set<Command> m_endingCommands = new LinkedHashSet<>();
 
-  private final Watchdog m_watchdog = new Watchdog(TimedRobot.kDefaultPeriod, () -> {});
+  private final Watchdog m_watchdog =
+      new Watchdog(
+          TimedRobot.kDefaultPeriod,
+          () -> {
+            System.out.println(
+                "CommandScheduler loop overrun, check NetworkTables for timing info");
+          });
 
   CommandScheduler() {
     HAL.report(tResourceType.kResourceType_Command, tInstances.kCommand2_Scheduler);
@@ -166,12 +173,11 @@ public final class CommandScheduler implements Sendable, AutoCloseable {
     for (Subsystem requirement : requirements) {
       m_requirements.put(requirement, command);
     }
-    command.initialize();
+    Tracer.traceFunc(command.getName() + ".initialize", command::initialize);
     for (Consumer<Command> action : m_initActions) {
       action.accept(command);
     }
 
-    m_watchdog.addEpoch(command.getName() + ".initialize()");
   }
 
   /**
@@ -257,29 +263,32 @@ public final class CommandScheduler implements Sendable, AutoCloseable {
    * have their end methods called and are removed.
    *
    * <p>Any subsystems not being used as requirements have their default methods started.
+   *
+   * <p>This method is implicitly timed using the {@link Tracer} class.
    */
   public void run() {
     if (m_disabled) {
       return;
     }
+
+    Tracer.startTrace("CommandScheduler");
     m_watchdog.reset();
 
     // Run the periodic method of all registered subsystems.
     for (Subsystem subsystem : m_subsystems.keySet()) {
-      subsystem.periodic();
+      Tracer.traceFunc(subsystem.getName() + "Periodic", subsystem::periodic);
       if (RobotBase.isSimulation()) {
-        subsystem.simulationPeriodic();
+        Tracer.traceFunc(subsystem.getName() + "SimulationPeriodic", subsystem::simulationPeriodic);
       }
-      m_watchdog.addEpoch(subsystem.getName() + ".periodic()");
     }
 
     // Cache the active instance to avoid concurrency problems if setActiveLoop() is called from
     // inside the button bindings.
     EventLoop loopCache = m_activeButtonLoop;
     // Poll buttons for new commands to add.
-    loopCache.poll();
-    m_watchdog.addEpoch("buttons.run()");
+    Tracer.traceFunc("PollButtons", loopCache::poll);
 
+    Tracer.startTrace("Commands");
     m_inRunLoop = true;
     boolean isDisabled = RobotState.isDisabled();
     // Run scheduled commands, remove finished commands.
@@ -291,14 +300,14 @@ public final class CommandScheduler implements Sendable, AutoCloseable {
         continue;
       }
 
-      command.execute();
+
+      Tracer.traceFunc(command.getName() + ".execute", command::execute);
       for (Consumer<Command> action : m_executeActions) {
         action.accept(command);
       }
-      m_watchdog.addEpoch(command.getName() + ".execute()");
       if (command.isFinished()) {
         m_endingCommands.add(command);
-        command.end(false);
+        Tracer.traceFunc(command.getName() + ".end(false)", () -> command.end(false));
         for (Consumer<Command> action : m_finishActions) {
           action.accept(command);
         }
@@ -306,7 +315,6 @@ public final class CommandScheduler implements Sendable, AutoCloseable {
         iterator.remove();
 
         m_requirements.keySet().removeAll(command.getRequirements());
-        m_watchdog.addEpoch(command.getName() + ".end(false)");
       }
     }
     m_inRunLoop = false;
@@ -331,12 +339,10 @@ public final class CommandScheduler implements Sendable, AutoCloseable {
         schedule(subsystemCommand.getValue());
       }
     }
+    Tracer.endTrace(); // Commands
+    Tracer.endTrace(); // CommandScheduler
 
     m_watchdog.disable();
-    if (m_watchdog.isExpired()) {
-      System.out.println("CommandScheduler loop overrun");
-      m_watchdog.printEpochs();
-    }
   }
 
   /**
@@ -486,14 +492,13 @@ public final class CommandScheduler implements Sendable, AutoCloseable {
     }
 
     m_endingCommands.add(command);
-    command.end(true);
+    Tracer.traceFunc(command.getName() + ".end(true)", () -> command.end(true));
     for (BiConsumer<Command, Optional<Command>> action : m_interruptActions) {
       action.accept(command, interruptor);
     }
     m_endingCommands.remove(command);
     m_scheduledCommands.remove(command);
     m_requirements.keySet().removeAll(command.getRequirements());
-    m_watchdog.addEpoch(command.getName() + ".end(true)");
   }
 
   /** Cancels all commands that are currently scheduled. */
@@ -551,11 +556,6 @@ public final class CommandScheduler implements Sendable, AutoCloseable {
   /** Enables the command scheduler. */
   public void enable() {
     m_disabled = false;
-  }
-
-  /** Prints list of epochs added so far and their times. */
-  public void printWatchdogEpochs() {
-    m_watchdog.printEpochs();
   }
 
   /**

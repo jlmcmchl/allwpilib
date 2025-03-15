@@ -12,6 +12,8 @@ import edu.wpi.first.util.function.BooleanConsumer;
 import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.util.sendable.SendableBuilder;
 import edu.wpi.first.util.sendable.SendableRegistry;
+import edu.wpi.first.wpilibj.Tracer;
+
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -597,6 +599,55 @@ public abstract class Command implements Sendable {
   public WrapperCommand withName(String name) {
     WrapperCommand wrapper = new WrapperCommand(Command.this) {};
     wrapper.setName(name);
+    return wrapper;
+  }
+
+  /**
+   * Decorates this Command so that its `Execute` method is implicitly timed using the {@link 
+   * Tracer} class This decorator also names the command similarly to the {@link #withName(String)}
+   * method.
+   * 
+   * @param name name
+   * @return the decorated Command
+   */
+  public WrapperCommand traced(String name) {
+    WrapperCommand wrapper = new WrapperCommand(Command.this) {
+      @Override
+      public void initialize() {
+        Tracer.startTrace(name + ".initialize");
+        super.initialize();
+        Tracer.endTrace();
+      }
+      @Override
+      public void execute() {
+        Tracer.startTrace(name + ".execute");
+        super.execute();
+        Tracer.endTrace();
+      }
+
+      @Override
+      public void end(boolean interrupted) {
+        if (interrupted) {
+          Tracer.startTrace(name + ".end(true)");
+        } else {
+          Tracer.startTrace(name + ".end(false)");
+        }
+        super.end(interrupted);
+        Tracer.endTrace();
+      }
+
+      @Override
+      public boolean isFinished() {
+        Tracer.startTrace(name + ".isFinished");
+        var ret = super.isFinished();
+        Tracer.endTrace();
+
+        return ret;
+      }
+    };
+
+    wrapper.setName(name);
+
     return wrapper;
   }
 
