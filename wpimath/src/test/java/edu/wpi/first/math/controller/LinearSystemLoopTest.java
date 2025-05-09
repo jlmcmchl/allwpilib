@@ -17,7 +17,7 @@ import edu.wpi.first.math.system.LinearSystem;
 import edu.wpi.first.math.system.LinearSystemLoop;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
-import edu.wpi.first.math.trajectory.TrapezoidCurve;
+import edu.wpi.first.math.trajectory.MotionProfile;
 import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import java.util.Random;
 import org.junit.jupiter.api.Test;
@@ -66,10 +66,10 @@ class LinearSystemLoopTest {
   void testStateSpaceEnabled() {
     m_loop.reset(VecBuilder.fill(0, 0));
 
-    var constraints = new TrapezoidCurve.Constraints(4, 3);
-    TrapezoidProfile profile = new TrapezoidProfile(constraints);
-    TrapezoidProfile.State state = new TrapezoidProfile.State();
-    TrapezoidProfile.State reference = new TrapezoidProfile.State(2, 0);
+    var constraints = new TrapezoidProfile.Constraints(4, 3);
+    MotionProfile profile = TrapezoidProfile.FullState(constraints);
+    MotionProfile.State state = new MotionProfile.State();
+    MotionProfile.State reference = new MotionProfile.State(2, 0);
 
     for (int i = 0; i < 1000; i++) {
       state = profile.calculate(kDt, state, reference);

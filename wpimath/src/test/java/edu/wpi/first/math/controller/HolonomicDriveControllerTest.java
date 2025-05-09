@@ -15,7 +15,7 @@ import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.trajectory.Trajectory;
 import edu.wpi.first.math.trajectory.TrajectoryConfig;
 import edu.wpi.first.math.trajectory.TrajectoryGenerator;
-import edu.wpi.first.math.trajectory.TrapezoidCurve;
+import edu.wpi.first.math.trajectory.TrapezoidProfile;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -31,7 +31,7 @@ class HolonomicDriveControllerTest {
             new PIDController(1.0, 0.0, 0.0),
             new PIDController(1.0, 0.0, 0.0),
             new ProfiledPIDController(
-                1.0, 0.0, 0.0, new TrapezoidCurve.Constraints(2.0 * Math.PI, Math.PI)));
+                1.0, 0.0, 0.0, new TrapezoidProfile.Constraints(2.0 * Math.PI, Math.PI)));
     Pose2d robotPose = new Pose2d(2.7, 23.0, Rotation2d.fromDegrees(0.0));
 
     List<Pose2d> waypoints = new ArrayList<>();
@@ -79,7 +79,7 @@ class HolonomicDriveControllerTest {
         new HolonomicDriveController(
             new PIDController(1, 0, 0),
             new PIDController(1, 0, 0),
-            new ProfiledPIDController(1, 0, 0, new TrapezoidCurve.Constraints(4, 2)));
+            new ProfiledPIDController(1, 0, 0, new TrapezoidProfile.Constraints(4, 2)));
 
     ChassisSpeeds speeds =
         controller.calculate(
