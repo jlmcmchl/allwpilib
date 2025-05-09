@@ -2,23 +2,53 @@ package edu.wpi.first.math.trajectory;
 
 import java.util.Objects;
 
-public class MotionProfile<T extends MotionCurve<T>> {
-  private final MotionCurve.Constraints<T> m_firstCurveConstraints;
-  private final MotionCurve.Constraints<T> m_secondCurveConstraints;
-  private final double m_maxVelocity;
-
+/**
+ * Abstract base class for motion profiles that define position and velocity trajectories over time.
+ * 
+ * <p>A motion profile generates a trajectory that smoothly transitions from one state to another
+ * while respecting constraints such as maximum velocity and acceleration. This class provides
+ * the foundation for various profile implementations like trapezoidal and exponential profiles.
+ * 
+ * <p>Motion profiles are useful for:
+ * <ul>
+ *   <li>Generating smooth motions between setpoints</li>
+ *   <li>Filtering control inputs to avoid jerky motions</li>
+ *   <li>Respecting physical constraints of systems</li>
+ * </ul>
+ */
+public abstract class MotionProfile {
+  /**
+   * Represents a state in a motion profile with position and velocity components.
+   */
   public static class State {
+    /** The position component of the state. */
     public double position;
 
+    /** The velocity component of the state. */
     public double velocity;
 
+    /**
+     * Creates a new State with position and velocity initialized to zero.
+     */
     public State() {}
 
+    /**
+     * Creates a new State with the specified position and velocity.
+     *
+     * @param position The position component.
+     * @param velocity The velocity component.
+     */
     public State(double position, double velocity) {
       this.position = position;
       this.velocity = velocity;
     }
 
+    /**
+     * Checks if this State is equal to another object.
+     *
+     * @param other The object to compare with this State.
+     * @return True if the other object is a State with the same position and velocity.
+     */
     @Override
     public boolean equals(Object other) {
       if (other instanceof State) {
@@ -29,165 +59,171 @@ public class MotionProfile<T extends MotionCurve<T>> {
       }
     }
 
+    /**
+     * Generates a hash code for this State.
+     *
+     * @return A hash code based on position and velocity.
+     */
     @Override
     public int hashCode() {
       return Objects.hash(position, velocity);
     }
 
+    /**
+     * Returns a string representation of this State.
+     *
+     * @return A string in the format "State(position, velocity)".
+     */
     @Override
     public String toString() {
       return String.format("State(%s, %s)", position, velocity);
     }
   }
 
-  public MotionProfile(
-      MotionCurve.Constraints<T> firstCurveConstraints,
-      MotionCurve.Constraints<T> secondCurveConstraints) {
-    m_firstCurveConstraints = firstCurveConstraints;
-    m_secondCurveConstraints = secondCurveConstraints;
-    m_maxVelocity =
-        Math.min(m_firstCurveConstraints.maxVelocity, m_secondCurveConstraints.maxVelocity);
+  /**
+   * Abstract base class for motion constraints that determine the allowable motion characteristics.
+   *
+   * @param <T> The type of curve that can be created from these constraints.
+   */
+  public abstract static class Constraints<T extends Curve> {
+    /** The maximum allowable velocity for the motion profile. Default is unlimited. */
+    public double maxVelocity = Double.MAX_VALUE;
+
+    /**
+     * Creates a curve passing through the given state in the specified direction.
+     *
+     * @param state The state that the curve should pass through.
+     * @param direction Whether the motion is in the negative (true) or positive (false) direction.
+     * @return A curve that passes through the state in the specified direction.
+     */
+    public abstract T throughState(State state, boolean direction);
+
+    /**
+     * Sets the maximum velocity constraint.
+     *
+     * @param velocity The maximum velocity.
+     * @return This object for method chaining.
+     */
+    public Constraints<T> withMaxVelocity(double velocity) {
+      this.maxVelocity = velocity;
+
+      return this;
+    }
   }
 
-  public State calculate(double t, State current, State goal) {
-    var direction = shouldFlipInput(current, goal);
+  /**
+   * Abstract base class for curve segments in motion profiles.
+   * 
+   * <p>A curve represents a mathematical function defining motion between states,
+   * with position and velocity characterized as functions of time.
+   */
+  public abstract static class Curve {
 
-    var firstCurve = m_firstCurveConstraints.throughState(current, direction);
-    var secondCurve = m_secondCurveConstraints.throughState(goal, !direction);
+    /**
+     * Computes the distance required to reach the specified velocity.
+     *
+     * @param velocity The target velocity.
+     * @return The distance required to reach the specified velocity.
+     */
+    public abstract double computeDistanceFromVelocity(double velocity);
 
-    var intersection = firstCurve.intersection(secondCurve);
+    /**
+     * Computes the time required to reach the goal state.
+     *
+     * @param goal The target state.
+     * @return The time required to reach the goal state.
+     */
+    public abstract double timeToState(State goal);
 
-    var maxVelocity = direction ? -m_maxVelocity : m_maxVelocity;
-
-    if (Math.abs(current.velocity) > m_maxVelocity
-        && Math.signum(current.velocity) == Math.signum(maxVelocity)) {
-      firstCurve = m_firstCurveConstraints.throughState(current, !direction);
-    } else {
-      firstCurve = m_firstCurveConstraints.throughState(current, direction);
+    /**
+     * Returns the state at the specified time along this curve.
+     *
+     * @param t The time since the start of the curve.
+     * @return The state at time t.
+     */
+    public State stateAtTime(double t) {
+      return new State(computeDistanceFromTime(t), computeVelocityFromTime(t));
     }
 
-    secondCurve = m_secondCurveConstraints.throughState(intersection, !direction);
+    /**
+     * Computes the velocity at the specified time.
+     *
+     * @param t The time since the start of the curve.
+     * @return The velocity at time t.
+     */
+    public abstract double computeVelocityFromTime(double t);
 
-    if (Math.abs(intersection.velocity) < m_maxVelocity) {
-      var timeAccelerating = firstCurve.timeToState(intersection);
+    /**
+     * Computes the distance traveled at the specified time.
+     *
+     * @param t The time since the start of the curve.
+     * @return The distance traveled at time t.
+     */
+    public abstract double computeDistanceFromTime(double t);
 
-      if (timeAccelerating >= t) {
-        return firstCurve.stateAtTime(t);
-      }
+    /**
+     * Calculates the velocity at which this curve intersects with another curve.
+     *
+     * @param other The other curve to intersect with.
+     * @return The velocity at the intersection point.
+     */
+    public abstract double intersectionVelocity(Curve other);
 
-      var timeDecelerating = secondCurve.timeToState(goal);
-
-      if (timeAccelerating + timeDecelerating >= t) {
-        return secondCurve.stateAtTime(t - timeAccelerating);
-      }
-
-      return goal;
+    /**
+     * Finds the state at which this curve intersects with another curve.
+     *
+     * @param other The other curve to intersect with.
+     * @return The state at the intersection point.
+     */
+    public State intersection(Curve other) {
+      var intersectionVelocity = intersectionVelocity(other);
+      return new State(computeDistanceFromVelocity(intersectionVelocity), intersectionVelocity);
     }
-
-    var firstIntersectionWithMaxVelocity =
-        new State(firstCurve.computeDistanceFromVelocity(maxVelocity), maxVelocity);
-
-    var timeAccelerating = firstCurve.timeToState(firstIntersectionWithMaxVelocity);
-
-    if (timeAccelerating >= t) {
-      return firstCurve.stateAtTime(t);
-    }
-
-    var secondIntersectionWithMaxVelocity =
-        new State(secondCurve.computeDistanceFromVelocity(maxVelocity), maxVelocity);
-
-    secondCurve =
-        m_secondCurveConstraints.throughState(secondIntersectionWithMaxVelocity, !direction);
-
-    var timeAtMaxVelocity =
-        (secondIntersectionWithMaxVelocity.position - firstIntersectionWithMaxVelocity.position)
-            / maxVelocity;
-
-    if (timeAccelerating + timeAtMaxVelocity >= t) {
-      return new State(
-          firstIntersectionWithMaxVelocity.position + maxVelocity * (t - timeAccelerating),
-          maxVelocity);
-    }
-
-    var timeDecelerating = secondCurve.timeToState(goal);
-
-    if (timeAccelerating + timeAtMaxVelocity + timeDecelerating >= t) {
-      return secondCurve.stateAtTime(t - (timeAccelerating + timeAtMaxVelocity));
-    }
-
-    return goal;
   }
 
-  public double timeRemaining(State current, State goal) {
-    var direction = shouldFlipInput(current, goal);
+  /**
+   * Calculates the state of the motion profile at a specified time.
+   *
+   * @param t The time since the start of the profile.
+   * @param current The current state (position and velocity).
+   * @param goal The desired goal state (position and velocity).
+   * @return The state at time t along the generated trajectory.
+   */
+  public abstract State calculate(double t, State current, State goal);
 
-    var firstCurve = m_firstCurveConstraints.throughState(current, direction);
-    var secondCurve = m_secondCurveConstraints.throughState(goal, !direction);
+  /**
+   * Calculates the time remaining until the motion profile reaches the goal state.
+   *
+   * @param current The current state (position and velocity).
+   * @param goal The desired goal state (position and velocity).
+   * @return The time remaining until the goal state is reached.
+   */
+  public abstract double timeRemaining(State current, State goal);
 
-    var intersection = firstCurve.intersection(secondCurve);
+  /**
+   * Determines whether the input direction should be flipped based on the current and goal states.
+   *
+   * @param current The current state (position and velocity).
+   * @param goal The desired goal state (position and velocity).
+   * @return True if the input direction should be flipped (reversed), false otherwise.
+   */
+  public abstract boolean shouldFlipInput(State current, State goal);
 
-    if (Math.abs(current.velocity) > m_maxVelocity) {
-      firstCurve = m_firstCurveConstraints.throughState(current, !direction);
-    } else {
-      firstCurve = m_firstCurveConstraints.throughState(current, direction);
-    }
-
-    secondCurve = m_secondCurveConstraints.throughState(intersection, !direction);
-
-    if (Math.abs(intersection.velocity) < m_maxVelocity
-        && Math.abs(current.velocity) < m_maxVelocity) {
-      var timeAccelerating = firstCurve.timeToState(intersection);
-
-      var timeDecelerating = secondCurve.timeToState(goal);
-
-      return timeAccelerating + timeDecelerating;
-    }
-
-    var maxVelocity = direction ? -m_maxVelocity : m_maxVelocity;
-
-    var firstIntersectionWithMaxVelocity =
-        new State(firstCurve.computeDistanceFromVelocity(maxVelocity), maxVelocity);
-
-    var timeAccelerating = firstCurve.timeToState(firstIntersectionWithMaxVelocity);
-
-    var secondIntersectionWithMaxVelocity =
-        new State(secondCurve.computeDistanceFromVelocity(maxVelocity), maxVelocity);
-
-    secondCurve =
-        m_secondCurveConstraints.throughState(secondIntersectionWithMaxVelocity, !direction);
-
-    var timeAtMaxVelocity =
-        (secondIntersectionWithMaxVelocity.position - firstIntersectionWithMaxVelocity.position)
-            / maxVelocity;
-
-    var timeDecelerating = secondCurve.timeToState(goal);
-
-    return timeAccelerating + timeAtMaxVelocity + timeDecelerating;
+  /**
+   * Creates a new motion profile follower for this profile.
+   *
+   * @return A motion profile follower for this profile.
+   */
+  public MotionProfileFollower<MotionProfile> follower() {
+    return new MotionProfileFollower<MotionProfile>(this);
   }
 
-  public boolean shouldFlipInput(State current, State goal) {
-    var xf = goal.position;
-    var v0 = current.velocity;
-    var vf = goal.velocity;
-
-    var x_forward =
-        m_firstCurveConstraints.throughState(current, false).computeDistanceFromVelocity(vf);
-    var x_reverse =
-        m_firstCurveConstraints.throughState(current, true).computeDistanceFromVelocity(vf);
-
-    if (Double.isNaN(x_forward)) {
-      return xf < x_reverse;
-    }
-
-    if (Double.isNaN(x_reverse)) {
-      return xf < x_forward;
-    }
-
-    var a = v0 >= 0;
-    var b = vf >= 0;
-    var c = xf >= x_forward;
-    var d = xf >= x_reverse;
-
-    return (a && !d) || (b && !c) || (!c && !d);
+  /**
+   * Creates a new rotation motion profile follower for this profile.
+   *
+   * @return A rotation motion profile follower for this profile.
+   */
+  public RotationMotionProfileFollower<MotionProfile> rotationFollower() {
+    return new RotationMotionProfileFollower<MotionProfile>(this);
   }
 }
