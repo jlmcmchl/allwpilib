@@ -9,12 +9,19 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class TrapezoidProfileTest {
   private static final double kDt = 0.01;
-  private static final TrapezoidCurve.Constraints m_constraints =
-      new TrapezoidCurve.Constraints(0.75).withMaxVelocity(1.75);
+  private static final TrapezoidProfile.Constraints m_constraints =
+      new TrapezoidProfile.Constraints(0.75).withMaxVelocity(1.75);
+
+  private static void assertNear(MotionProfile.State val1, MotionProfile.State val2, double eps) {
+    assertAll(
+        () -> assertNear(val1.position, val2.position, eps),
+        () -> assertNear(val1.position, val2.position, eps));
+  }
 
   /**
    * Asserts "val1" is less than or equal to "val2".
@@ -55,173 +62,335 @@ class TrapezoidProfileTest {
   }
 
   private static MotionProfile.State checkDynamics(
-      TrapezoidProfile profile,
-      TrapezoidCurve.Constraints constraints,
-      MotionProfile.State current,
-      MotionProfile.State goal) {
+      MotionProfile profile, MotionProfile.State current, MotionProfile.State goal) {
     var next = profile.calculate(kDt, current, goal);
 
     var velocity_delta = next.velocity - current.velocity;
 
     double accel = velocity_delta / kDt;
 
-    // System.out.printf("%s, %s, %s%n", next.position, next.velocity, accel);
-    assertAll(
-        () -> assertLessThanOrNear(constraints.maxAcceleration, Math.abs(accel), 1e-9),
-        () -> {
-          if (Math.abs(current.velocity) <= constraints.maxVelocity) {
-            assertLessThanOrNear(constraints.maxVelocity, Math.abs(next.velocity), 1e-9);
-          }
-        });
+    double position_delta = next.position - current.position;
+    double position_delta_expected = current.velocity * kDt + 0.5 * accel * kDt * kDt;
 
-    assertLessThanOrNear(constraints.maxAcceleration, Math.abs(accel), 1e-9);
+    assertAll(
+        () -> assertLessThanOrNear(m_constraints.maxAcceleration, Math.abs(accel), 1e-9),
+        () -> {
+          if (Math.abs(current.velocity) <= m_constraints.maxVelocity) {
+            assertLessThanOrNear(m_constraints.maxVelocity, Math.abs(next.velocity), 1e-9);
+          }
+        },
+        () ->
+            assertLessThanOrNear(
+                Math.abs(position_delta_expected), Math.abs(position_delta), 2e-2));
+
+    assertLessThanOrNear(m_constraints.maxAcceleration, Math.abs(accel), 1e-9);
 
     return next;
   }
 
   @Test
   void reachesGoal() {
-    TrapezoidProfile profile = new TrapezoidProfile(m_constraints);
-    MotionProfile.State goal = new MotionProfile.State(3, 0);
+    System.out.println("reachesGoal");
+    MotionProfile profile = TrapezoidProfile.FullState(m_constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(10, 0);
     MotionProfile.State state = new MotionProfile.State();
 
-    for (int i = 0; i < 450; ++i) {
-      state = checkDynamics(profile, m_constraints, state, goal);
+    for (int i = 0; i < 2000; ++i) {
+      state = checkDynamics(profile, state, goal);
     }
-    assertEquals(goal, state);
-  }
-
-  @Test
-  void sandbox() {
-    var constraints = new TrapezoidCurve.Constraints(0.75).withMaxVelocity(0.75);
-    TrapezoidProfile profile = new TrapezoidProfile(constraints);
-    MotionProfile.State goal = new MotionProfile.State(0, 0);
-    MotionProfile.State state = new MotionProfile.State(-1.125, -0.75);
-
-    checkDynamics(profile, constraints, state, goal);
-  }
-
-  @Test
-  void sandbox2() {
-    var constraints = new TrapezoidCurve.Constraints(4, 3);
-    TrapezoidProfile profile = new TrapezoidProfile(constraints);
-    MotionProfile.State goal = new MotionProfile.State(2, 0);
-    MotionProfile.State state = new MotionProfile.State(0.57374640548276, 4.052326119576375);
-
-    checkDynamics(profile, constraints, state, goal);
-  }
-
-  @Test
-  void sandbox3() {
-    var constraints = new TrapezoidCurve.Constraints(4, 3);
-    TrapezoidProfile profile = new TrapezoidProfile(constraints);
-    MotionProfile.State goal = new MotionProfile.State(2, 0);
-    MotionProfile.State state = new MotionProfile.State(0.5685415824511675, 4.04638924467208);
-
-    checkDynamics(profile, constraints, state, goal);
+    assertEquals(state, goal);
   }
 
   // Tests that decreasing the maximum velocity in the middle when it is already
   // moving faster than the new max is handled correctly
   @Test
   void posContinuousUnderVelChange() {
-    var constraints = m_constraints;
-    TrapezoidProfile profile = new TrapezoidProfile(constraints);
-    MotionProfile.State goal = new MotionProfile.State(12, 0);
+    System.out.println("posContinuousUnderVelChange");
+    MotionProfile profile = TrapezoidProfile.FullState(m_constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(10, 0);
     MotionProfile.State state = new MotionProfile.State();
 
-    for (int i = 0; i < 1600; ++i) {
-      if (i == 400) {
-        constraints = new TrapezoidCurve.Constraints(0.75).withMaxVelocity(0.75);
-        profile = new TrapezoidProfile(constraints);
+    for (int i = 0; i < 2000; ++i) {
+      if (i == 150) {
+        profile =
+            TrapezoidProfile.FullState(
+                new TrapezoidProfile.Constraints(0.75).withMaxVelocity(0.75));
       }
 
-      state = checkDynamics(profile, constraints, state, goal);
+      state = checkDynamics(profile, state, goal);
     }
+    assertEquals(state, goal);
+  }
 
+  // // Tests that decreasing the maximum velocity in the middle when it is already
+  // // moving faster than the new max is handled correctly
+  @Test
+  void posContinuousUnderVelChangeBackward() {
+    System.out.println("posContinuousUnderVelChangeBackward");
+    MotionProfile profile = TrapezoidProfile.FullState(m_constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(-10, 0);
+    MotionProfile.State state = new MotionProfile.State();
+
+    for (int i = 0; i < 2000; ++i) {
+      if (i == 150) {
+        profile =
+            TrapezoidProfile.FullState(
+                new TrapezoidProfile.Constraints(0.75).withMaxVelocity(0.75));
+      }
+
+      state = checkDynamics(profile, state, goal);
+    }
     assertEquals(state, goal);
   }
 
   // There is some somewhat tricky code for dealing with going backwards
   @Test
   void backwards() {
-    TrapezoidProfile profile = new TrapezoidProfile(m_constraints);
-    MotionProfile.State goal = new MotionProfile.State(-2, 0);
+    System.out.println("backwards");
+    MotionProfile profile = TrapezoidProfile.FullState(m_constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(-10, 0);
     MotionProfile.State state = new MotionProfile.State();
 
-    for (int i = 0; i < 400; ++i) {
-      state = checkDynamics(profile, m_constraints, state, goal);
+    for (int i = 0; i < 2000; ++i) {
+      state = checkDynamics(profile, state, goal);
     }
     assertEquals(goal, state);
   }
 
   @Test
   void switchGoalInMiddle() {
-    TrapezoidCurve.Constraints constraints =
-        new TrapezoidCurve.Constraints(0.75).withMaxVelocity(0.75);
-    TrapezoidProfile profile = new TrapezoidProfile(constraints);
-    MotionProfile.State goal = new MotionProfile.State(-2, 0);
+    System.out.println("switchGoalInMiddle");
+    MotionProfile profile = TrapezoidProfile.FullState(m_constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(-10, 0);
     MotionProfile.State state = new MotionProfile.State();
-
-    for (int i = 0; i < 750; ++i) {
-      if (i == 200) {
-        assertNotEquals(state, goal);
-        goal = new MotionProfile.State();
-      }
-
-      state = checkDynamics(profile, constraints, state, goal);
+    for (int i = 0; i < 50; ++i) {
+      state = checkDynamics(profile, state, goal);
     }
+    assertNotEquals(state, goal);
 
+    goal = new MotionProfile.State(0.0, 0.0);
+    for (int i = 0; i < 2000; ++i) {
+      state = checkDynamics(profile, state, goal);
+    }
     assertEquals(state, goal);
   }
 
   // Checks to make sure that it hits top speed
   @Test
   void topSpeed() {
-    TrapezoidProfile profile = new TrapezoidProfile(m_constraints);
-    MotionProfile.State goal = new MotionProfile.State(5, 0);
+    System.out.println("topSpeed");
+    MotionProfile profile = TrapezoidProfile.FullState(m_constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(40, 0);
     MotionProfile.State state = new MotionProfile.State();
-
-    double maxSpeed = state.velocity;
-
-    for (int i = 0; i < 550; ++i) {
-      state = checkDynamics(profile, m_constraints, state, goal);
+    double maxSpeed = 0;
+    for (int i = 0; i < 3000; ++i) {
+      state = checkDynamics(profile, state, goal);
       maxSpeed = Math.max(maxSpeed, state.velocity);
     }
 
     MotionProfile.State finalState = state;
     double finalMaxSpeed = maxSpeed;
+
     assertAll(
         () -> assertEquals(goal, finalState),
         () -> assertNear(m_constraints.maxVelocity, finalMaxSpeed, 1e-9));
   }
 
   @Test
-  void timingToCurrent() {
-    TrapezoidCurve.Constraints constraints =
-        new TrapezoidCurve.Constraints(0.75).withMaxVelocity(0.75);
-    TrapezoidProfile profile = new TrapezoidProfile(constraints);
-    MotionProfile.State goal = new MotionProfile.State(4, 0);
-    MotionProfile.State state = new MotionProfile.State();
+  void topSpeedBackward() {
+    System.out.println("topSpeedBackward");
+    MotionProfile profile = TrapezoidProfile.FullState(m_constraints);
 
-    for (int i = 0; i < 400; i++) {
-      state = profile.calculate(kDt, state, goal);
-      assertNear(0, profile.timeRemaining(state, state), 2e-2);
+    MotionProfile.State goal = new MotionProfile.State(-40, 0);
+    MotionProfile.State state = new MotionProfile.State();
+    double maxSpeed = 0;
+    for (int i = 0; i < 3000; ++i) {
+      state = checkDynamics(profile, state, goal);
+      maxSpeed = Math.min(maxSpeed, state.velocity);
+    }
+
+    MotionProfile.State finalState = state;
+    double finalMaxSpeed = maxSpeed;
+
+    assertAll(
+        () -> assertEquals(goal, finalState),
+        () -> assertNear(-m_constraints.maxVelocity, finalMaxSpeed, 1e-9));
+  }
+
+  @Test
+  void largeInitialVelocity() {
+    System.out.println("largeInitialVelocity");
+    MotionProfile profile = TrapezoidProfile.FullState(m_constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(40, 0);
+    MotionProfile.State state = new MotionProfile.State(0, 8);
+    for (int i = 0; i < 2000; ++i) {
+      state = checkDynamics(profile, state, goal);
+    }
+
+    assertEquals(state, goal);
+  }
+
+  @Test
+  void largeNegativeInitialVelocity() {
+    System.out.println("largeNegativeInitialVelocity");
+    MotionProfile profile = TrapezoidProfile.FullState(m_constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(-40, 0);
+    MotionProfile.State state = new MotionProfile.State(0, -8);
+    for (int i = 0; i < 2000; ++i) {
+      state = checkDynamics(profile, state, goal);
+    }
+
+    assertEquals(state, goal);
+  }
+
+  @SuppressWarnings("PMD.TestClassWithoutTestCases")
+  static class TestCase {
+    public final MotionProfile.State initial;
+    public final MotionProfile.State goal;
+    public final MotionProfile.State inflectionPoint;
+
+    TestCase(
+        MotionProfile.State initial,
+        MotionProfile.State goal,
+        MotionProfile.State inflectionPoint) {
+      this.initial = initial;
+      this.goal = goal;
+      this.inflectionPoint = inflectionPoint;
+    }
+  }
+
+  @Test
+  void testHeuristic() {
+    System.out.println("testHeuristic");
+    List<TestCase> testCases =
+        List.of(
+            new TestCase(
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(0.75, -4),
+                new MotionProfile.State(1.3758, 4.4304)),
+            new TestCase(
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(1.4103, 4),
+                new MotionProfile.State(1.3758, 4.4304)),
+            new TestCase(
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(0.75, -4),
+                new MotionProfile.State(1.3758, 4.4304)),
+            new TestCase(
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(1.4103, 4),
+                new MotionProfile.State(1.3758, 4.4304)),
+            new TestCase(
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(0.5, -2),
+                new MotionProfile.State(0.4367, 3.7217)),
+            new TestCase(
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(0.546, 2),
+                new MotionProfile.State(0.4367, 3.7217)),
+            new TestCase(
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(0.5, -2),
+                new MotionProfile.State(0.5560, -2.9616)),
+            new TestCase(
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(0.546, 2),
+                new MotionProfile.State(0.5560, -2.9616)),
+            new TestCase(
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(-0.75, -4),
+                new MotionProfile.State(-0.7156, -4.4304)),
+            new TestCase(
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(-0.0897, 4),
+                new MotionProfile.State(-0.7156, -4.4304)),
+            new TestCase(
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(-0.75, -4),
+                new MotionProfile.State(-0.7156, -4.4304)),
+            new TestCase(
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(-0.0897, 4),
+                new MotionProfile.State(-0.7156, -4.4304)),
+            new TestCase(
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(-0.5, -4.5),
+                new MotionProfile.State(1.095, 4.314)),
+            new TestCase(
+                new MotionProfile.State(0.0, -4),
+                new MotionProfile.State(1.0795, 4.5),
+                new MotionProfile.State(-0.5122, -4.351)),
+            new TestCase(
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(-0.5, -4.5),
+                new MotionProfile.State(1.095, 4.314)),
+            new TestCase(
+                new MotionProfile.State(0.6603, 4),
+                new MotionProfile.State(1.0795, 4.5),
+                new MotionProfile.State(-0.5122, -4.351)),
+            new TestCase(
+                new MotionProfile.State(0.0, -8),
+                new MotionProfile.State(0, 0),
+                new MotionProfile.State(-0.1384, 3.342)),
+            new TestCase(
+                new MotionProfile.State(0.0, -8),
+                new MotionProfile.State(-1, 0),
+                new MotionProfile.State(-0.562, -6.792)),
+            new TestCase(
+                new MotionProfile.State(0.0, 8),
+                new MotionProfile.State(1, 0),
+                new MotionProfile.State(0.562, 6.792)),
+            new TestCase(
+                new MotionProfile.State(0.0, 8),
+                new MotionProfile.State(-1, 0),
+                new MotionProfile.State(-0.785, -4.346)));
+
+    var profile = TrapezoidProfile.FullState(m_constraints);
+
+    for (var testCase : testCases) {
+      var direction = profile.shouldFlipInput(testCase.initial, testCase.goal);
+      var state =
+          m_constraints
+              .throughState(testCase.initial, direction)
+              .intersection(m_constraints.throughState(testCase.goal, !direction));
+      // assertNear(testCase.inflectionPoint, state, 1e-3);
+    }
+  }
+
+  @Test
+  void timingToCurrent() {
+    System.out.println("timingToCurrent");
+    MotionProfile profile = TrapezoidProfile.FullState(m_constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(2, 0);
+    MotionProfile.State state = new MotionProfile.State();
+    for (int i = 0; i < 2000; i++) {
+      state = checkDynamics(profile, state, goal);
+      assertNear(profile.timeRemaining(state, state), 0, 2e-2);
     }
   }
 
   @Test
   void timingToGoal() {
-    TrapezoidCurve.Constraints constraints =
-        new TrapezoidCurve.Constraints(0.75).withMaxVelocity(0.75);
-    TrapezoidProfile profile = new TrapezoidProfile(constraints);
-    MotionProfile.State goal = new MotionProfile.State(2, 0);
+    System.out.println("timingToGoal");
+    MotionProfile profile = TrapezoidProfile.FullState(m_constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(-40, 0);
     MotionProfile.State state = new MotionProfile.State();
 
     double predictedTimeLeft = profile.timeRemaining(state, goal);
     boolean reachedGoal = false;
-    for (int i = 0; i < 400; i++) {
-      state = profile.calculate(kDt, state, goal);
+    for (int i = 0; i < 2000; i++) {
+      state = checkDynamics(profile, state, goal);
+
       if (!reachedGoal && state.equals(goal)) {
         // Expected value using for loop index is just an approximation since
         // the time left in the profile doesn't increase linearly at the
@@ -234,16 +403,17 @@ class TrapezoidProfileTest {
 
   @Test
   void timingToNegativeGoal() {
-    TrapezoidCurve.Constraints constraints =
-        new TrapezoidCurve.Constraints(0.75).withMaxVelocity(0.75);
-    TrapezoidProfile profile = new TrapezoidProfile(constraints);
-    MotionProfile.State goal = new MotionProfile.State(-2, 0);
+    System.out.println("timingToNegativeGoal");
+    MotionProfile profile = TrapezoidProfile.FullState(m_constraints);
+
+    MotionProfile.State goal = new MotionProfile.State(-40, 0);
     MotionProfile.State state = new MotionProfile.State();
 
     double predictedTimeLeft = profile.timeRemaining(state, goal);
     boolean reachedGoal = false;
-    for (int i = 0; i < 400; i++) {
-      state = profile.calculate(kDt, state, goal);
+    for (int i = 0; i < 2000; i++) {
+      state = checkDynamics(profile, state, goal);
+
       if (!reachedGoal && state.equals(goal)) {
         // Expected value using for loop index is just an approximation since
         // the time left in the profile doesn't increase linearly at the

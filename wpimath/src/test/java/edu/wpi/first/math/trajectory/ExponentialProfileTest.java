@@ -16,9 +16,9 @@ import org.junit.jupiter.api.Test;
 class ExponentialProfileTest {
   private static final double kDt = 0.01;
   private static final SimpleMotorFeedforward feedforward =
-      new SimpleMotorFeedforward(0, 2.5629, 0.43277);
-  private static final ExponentialCurve.Constraints constraints =
-      ExponentialCurve.Constraints.fromCharacteristics(12, 2.5629, 0.43277);
+      new SimpleMotorFeedforward(0, 2.5629, 0.43277, 0.01);
+  private static final ExponentialProfile.Constraints constraints =
+      ExponentialProfile.Constraints.fromCharacteristics(12, 2.5629, 0.43277);
 
   /**
    * Asserts "val1" is within "eps" of "val2".
@@ -39,19 +39,46 @@ class ExponentialProfileTest {
         () -> assertNear(val1.position, val2.position, eps));
   }
 
-  private static MotionProfile.State checkDynamics(
-      ExponentialProfile profile, MotionProfile.State current, MotionProfile.State goal) {
-    var next = profile.calculate(kDt, current, goal);
-    var signal = feedforward.calculateWithVelocities(current.velocity, next.velocity);
+  /**
+   * Asserts "val1" is less than or equal to "val2".
+   *
+   * @param val1 First operand in comparison.
+   * @param val2 Second operand in comparison.
+   */
+  private static void assertLessThanOrEquals(double expected, double actual) {
+    assertTrue(actual <= expected, actual + " is greater than " + expected);
+  }
 
-    assertTrue(Math.abs(signal) < constraints.maxInput + 1e-9);
+  /**
+   * Asserts "val1" is less than or within "eps" of "val2".
+   *
+   * @param val1 First operand in comparison.
+   * @param val2 Second operand in comparison.
+   * @param eps Tolerance for whether values are near to each other.
+   */
+  private static void assertLessThanOrNear(double expected, double actual, double eps) {
+    if (actual <= expected) {
+      assertLessThanOrEquals(expected, actual);
+    } else {
+      assertNear(expected, actual, eps);
+    }
+  }
+
+  private static MotionProfile.State checkDynamics(
+      MotionProfile profile, MotionProfile.State current, MotionProfile.State goal) {
+    var next = profile.calculate(kDt, current, goal);
+    System.out.printf("next: %s\n", next);
+    var signal = feedforward.calculateWithVelocities(current.velocity, next.velocity);
+    System.out.printf("signal: %s\n", signal);
+    assertLessThanOrNear(constraints.maxInput, Math.abs(signal), 1e-6);
 
     return next;
   }
 
   @Test
   void reachesGoal() {
-    ExponentialProfile profile = constraints.asMotionProfile();
+    System.out.println("reachesGoal");
+    MotionProfile profile = ExponentialProfile.FullState(constraints);
 
     MotionProfile.State goal = new MotionProfile.State(10, 0);
     MotionProfile.State state = new MotionProfile.State();
@@ -66,7 +93,8 @@ class ExponentialProfileTest {
   // moving faster than the new max is handled correctly
   @Test
   void posContinuousUnderVelChange() {
-    ExponentialProfile profile = constraints.asMotionProfile();;
+    System.out.println("posContinuousUnderVelChange");
+    MotionProfile profile = ExponentialProfile.FullState(constraints);
 
     MotionProfile.State goal = new MotionProfile.State(10, 0);
     MotionProfile.State state = new MotionProfile.State();
@@ -74,8 +102,8 @@ class ExponentialProfileTest {
     for (int i = 0; i < 300; ++i) {
       if (i == 150) {
         profile =
-            new ExponentialProfile(
-                ExponentialCurve.Constraints.fromStateSpace(9, constraints.A, constraints.B));
+            ExponentialProfile.FullState(
+                ExponentialProfile.Constraints.fromStateSpace(9, constraints.A, constraints.B));
       }
 
       state = checkDynamics(profile, state, goal);
@@ -87,7 +115,8 @@ class ExponentialProfileTest {
   // // moving faster than the new max is handled correctly
   @Test
   void posContinuousUnderVelChangeBackward() {
-    ExponentialProfile profile = constraints.asMotionProfile();;
+    System.out.println("posContinuousUnderVelChangeBackward");
+    MotionProfile profile = ExponentialProfile.FullState(constraints);
 
     MotionProfile.State goal = new MotionProfile.State(-10, 0);
     MotionProfile.State state = new MotionProfile.State();
@@ -95,8 +124,8 @@ class ExponentialProfileTest {
     for (int i = 0; i < 300; ++i) {
       if (i == 150) {
         profile =
-            new ExponentialProfile(
-                ExponentialCurve.Constraints.fromStateSpace(9, constraints.A, constraints.B));
+            ExponentialProfile.FullState(
+                ExponentialProfile.Constraints.fromStateSpace(9, constraints.A, constraints.B));
       }
 
       state = checkDynamics(profile, state, goal);
@@ -107,7 +136,8 @@ class ExponentialProfileTest {
   // There is some somewhat tricky code for dealing with going backwards
   @Test
   void backwards() {
-    ExponentialProfile profile = constraints.asMotionProfile();;
+    System.out.println("backwards");
+    MotionProfile profile = ExponentialProfile.FullState(constraints);
 
     MotionProfile.State goal = new MotionProfile.State(-10, 0);
     MotionProfile.State state = new MotionProfile.State();
@@ -120,7 +150,8 @@ class ExponentialProfileTest {
 
   @Test
   void switchGoalInMiddle() {
-    ExponentialProfile profile = constraints.asMotionProfile();;
+    System.out.println("switchGoalInMiddle");
+    MotionProfile profile = ExponentialProfile.FullState(constraints);
 
     MotionProfile.State goal = new MotionProfile.State(-10, 0);
     MotionProfile.State state = new MotionProfile.State();
@@ -139,7 +170,8 @@ class ExponentialProfileTest {
   // Checks to make sure that it hits top speed
   @Test
   void topSpeed() {
-    ExponentialProfile profile = constraints.asMotionProfile();;
+    System.out.println("topSpeed");
+    MotionProfile profile = ExponentialProfile.FullState(constraints);
 
     MotionProfile.State goal = new MotionProfile.State(40, 0);
     MotionProfile.State state = new MotionProfile.State();
@@ -155,7 +187,8 @@ class ExponentialProfileTest {
 
   @Test
   void topSpeedBackward() {
-    ExponentialProfile profile = constraints.asMotionProfile();;
+    System.out.println("topSpeedBackward");
+    MotionProfile profile = ExponentialProfile.FullState(constraints);
 
     MotionProfile.State goal = new MotionProfile.State(-40, 0);
     MotionProfile.State state = new MotionProfile.State();
@@ -171,7 +204,8 @@ class ExponentialProfileTest {
 
   @Test
   void largeInitialVelocity() {
-    ExponentialProfile profile = constraints.asMotionProfile();;
+    System.out.println("largeInitialVelocity");
+    MotionProfile profile = ExponentialProfile.FullState(constraints);
 
     MotionProfile.State goal = new MotionProfile.State(40, 0);
     MotionProfile.State state = new MotionProfile.State(0, 8);
@@ -184,7 +218,8 @@ class ExponentialProfileTest {
 
   @Test
   void largeNegativeInitialVelocity() {
-    ExponentialProfile profile = constraints.asMotionProfile();;
+    System.out.println("largeNegativeInitialVelocity");
+    MotionProfile profile = ExponentialProfile.FullState(constraints);
 
     MotionProfile.State goal = new MotionProfile.State(-40, 0);
     MotionProfile.State state = new MotionProfile.State(0, -8);
@@ -213,6 +248,7 @@ class ExponentialProfileTest {
 
   @Test
   void testHeuristic() {
+    System.out.println("testHeuristic");
     List<TestCase> testCases =
         List.of(
             new TestCase(
@@ -296,7 +332,7 @@ class ExponentialProfileTest {
                 new MotionProfile.State(-1, 0),
                 new MotionProfile.State(-0.785, -4.346)));
 
-    var profile = constraints.asMotionProfile();;
+    var profile = ExponentialProfile.FullState(constraints);
 
     for (var testCase : testCases) {
       var direction = profile.shouldFlipInput(testCase.initial, testCase.goal);
@@ -310,7 +346,8 @@ class ExponentialProfileTest {
 
   @Test
   void timingToCurrent() {
-    ExponentialProfile profile = constraints.asMotionProfile();;
+    System.out.println("timingToCurrent");
+    MotionProfile profile = ExponentialProfile.FullState(constraints);
 
     MotionProfile.State goal = new MotionProfile.State(2, 0);
     MotionProfile.State state = new MotionProfile.State();
@@ -322,7 +359,8 @@ class ExponentialProfileTest {
 
   @Test
   void timingToGoal() {
-    ExponentialProfile profile = constraints.asMotionProfile();;
+    System.out.println("timingToGoal");
+    MotionProfile profile = ExponentialProfile.FullState(constraints);
 
     MotionProfile.State goal = new MotionProfile.State(-40, 0);
     MotionProfile.State state = new MotionProfile.State();
@@ -344,7 +382,8 @@ class ExponentialProfileTest {
 
   @Test
   void timingToNegativeGoal() {
-    ExponentialProfile profile = constraints.asMotionProfile();;
+    System.out.println("timingToNegativeGoal");
+    MotionProfile profile = ExponentialProfile.FullState(constraints);
 
     MotionProfile.State goal = new MotionProfile.State(-40, 0);
     MotionProfile.State state = new MotionProfile.State();
