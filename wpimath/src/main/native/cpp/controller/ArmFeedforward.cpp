@@ -4,6 +4,7 @@
 
 #include "frc/controller/ArmFeedforward.h"
 
+#include <algorithm>
 #include <limits>
 
 #include <sleipnir/autodiff/Gradient.hpp>
@@ -14,11 +15,17 @@
 
 using namespace frc;
 
-units::volt_t ArmFeedforward::Calculate(units::unit_t<Angle> currentAngle,
-                                        units::unit_t<Velocity> currentVelocity,
-                                        units::unit_t<Velocity> nextVelocity,
-                                        units::second_t dt) const {
+units::volt_t ArmFeedforward::Calculate(
+    units::unit_t<Angle> currentAngle, units::unit_t<Velocity> currentVelocity,
+    units::unit_t<Velocity> nextVelocity) const {
   using VarMat = sleipnir::VariableMatrix;
+
+  // Small kₐ values make the solver ill-conditioned
+  if (kA < units::unit_t<ka_unit>{1e-1}) {
+    auto acceleration = (nextVelocity - currentVelocity) / m_dt;
+    return kS * wpi::sgn(currentVelocity.value()) + kV * currentVelocity +
+           kA * acceleration + kG * units::math::cos(currentAngle);
+  }
 
   // Arm dynamics
   Matrixd<2, 2> A{{0.0, 1.0}, {0.0, -kV.value() / kA.value()}};
@@ -35,12 +42,12 @@ units::volt_t ArmFeedforward::Calculate(units::unit_t<Angle> currentAngle,
   sleipnir::Variable u_k;
 
   // Initial guess
-  auto acceleration = (nextVelocity - currentVelocity) / dt;
+  auto acceleration = (nextVelocity - currentVelocity) / m_dt;
   u_k.SetValue((kS * wpi::sgn(currentVelocity.value()) + kV * currentVelocity +
                 kA * acceleration + kG * units::math::cos(currentAngle))
                    .value());
 
-  auto r_k1 = RK4<decltype(f), VarMat, VarMat>(f, r_k, u_k, dt);
+  auto r_k1 = RK4<decltype(f), VarMat, VarMat>(f, r_k, u_k, m_dt);
 
   // Minimize difference between desired and actual next velocity
   auto cost =
@@ -57,8 +64,14 @@ units::volt_t ArmFeedforward::Calculate(units::unit_t<Angle> currentAngle,
     sleipnir::Hessian hessianF{cost, xAD};
     Eigen::SparseMatrix<double> H = hessianF.Value();
 
-    double error = std::numeric_limits<double>::infinity();
-    while (error > 1e-8) {
+    double error_k = std::numeric_limits<double>::infinity();
+    double error_k1 = std::abs(g.coeff(0));
+
+    // Loop until error stops decreasing or max iterations is reached
+    for (size_t iteration = 0;
+         iteration < 50 && error_k1 < (1.0 - 1e-10) * error_k; ++iteration) {
+      error_k = error_k1;
+
       // Iterate via Newton's method.
       //
       //   xₖ₊₁ = xₖ − H⁻¹g
@@ -90,7 +103,7 @@ units::volt_t ArmFeedforward::Calculate(units::unit_t<Angle> currentAngle,
       g = gradientF.Value();
       H = hessianF.Value();
 
-      error = std::abs(g.coeff(0));
+      error_k1 = std::abs(g.coeff(0));
     }
   }
 

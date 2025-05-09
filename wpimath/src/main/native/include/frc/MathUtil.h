@@ -7,11 +7,18 @@
 #include <numbers>
 #include <type_traits>
 
+#include <gcem.hpp>
 #include <wpi/SymbolExports.h>
 
+#include "frc/geometry/Translation2d.h"
+#include "frc/geometry/Translation3d.h"
 #include "units/angle.h"
 #include "units/base.h"
+#include "units/length.h"
 #include "units/math.h"
+#include "units/time.h"
+#include "units/velocity.h"
+#include "wpimath/MathShared.h"
 
 namespace frc {
 
@@ -28,58 +35,62 @@ namespace frc {
  */
 template <typename T>
   requires std::is_arithmetic_v<T> || units::traits::is_unit_t_v<T>
-T ApplyDeadband(T value, T deadband, T maxMagnitude = T{1.0}) {
+constexpr T ApplyDeadband(T value, T deadband, T maxMagnitude = T{1.0}) {
   T magnitude;
   if constexpr (std::is_arithmetic_v<T>) {
-    magnitude = std::abs(value);
+    magnitude = gcem::abs(value);
   } else {
     magnitude = units::math::abs(value);
   }
 
-  if (magnitude > deadband) {
-    if (maxMagnitude / deadband > 1.0E12) {
-      // If max magnitude is sufficiently large, the implementation encounters
-      // roundoff error.  Implementing the limiting behavior directly avoids
-      // the problem.
-      return value > T{0.0} ? value - deadband : value + deadband;
-    }
-    if (value > T{0.0}) {
-      // Map deadband to 0 and map max to max.
-      //
-      // y - y₁ = m(x - x₁)
-      // y - y₁ = (y₂ - y₁)/(x₂ - x₁) (x - x₁)
-      // y = (y₂ - y₁)/(x₂ - x₁) (x - x₁) + y₁
-      //
-      // (x₁, y₁) = (deadband, 0) and (x₂, y₂) = (max, max).
-      // x₁ = deadband
-      // y₁ = 0
-      // x₂ = max
-      // y₂ = max
-      //
-      // y = (max - 0)/(max - deadband) (x - deadband) + 0
-      // y = max/(max - deadband) (x - deadband)
-      // y = max (x - deadband)/(max - deadband)
-      return maxMagnitude * (value - deadband) / (maxMagnitude - deadband);
-    } else {
-      // Map -deadband to 0 and map -max to -max.
-      //
-      // y - y₁ = m(x - x₁)
-      // y - y₁ = (y₂ - y₁)/(x₂ - x₁) (x - x₁)
-      // y = (y₂ - y₁)/(x₂ - x₁) (x - x₁) + y₁
-      //
-      // (x₁, y₁) = (-deadband, 0) and (x₂, y₂) = (-max, -max).
-      // x₁ = -deadband
-      // y₁ = 0
-      // x₂ = -max
-      // y₂ = -max
-      //
-      // y = (-max - 0)/(-max + deadband) (x + deadband) + 0
-      // y = max/(max - deadband) (x + deadband)
-      // y = max (x + deadband)/(max - deadband)
-      return maxMagnitude * (value + deadband) / (maxMagnitude - deadband);
-    }
-  } else {
+  if (magnitude < deadband) {
     return T{0.0};
+  }
+
+  if (value > T{0.0}) {
+    // Map deadband to 0 and map max to max with a linear relationship.
+    //
+    //   y - y₁ = m(x - x₁)
+    //   y - y₁ = (y₂ - y₁)/(x₂ - x₁) (x - x₁)
+    //   y = (y₂ - y₁)/(x₂ - x₁) (x - x₁) + y₁
+    //
+    // (x₁, y₁) = (deadband, 0) and (x₂, y₂) = (max, max).
+    //
+    //   x₁ = deadband
+    //   y₁ = 0
+    //   x₂ = max
+    //   y₂ = max
+    //   y = (max - 0)/(max - deadband) (x - deadband) + 0
+    //   y = max/(max - deadband) (x - deadband)
+    //
+    // To handle high values of max, rewrite so that max only appears on the
+    // denominator.
+    //
+    //   y = ((max - deadband) + deadband)/(max - deadband) (x - deadband)
+    //   y = (1 + deadband/(max - deadband)) (x - deadband)
+    return (1.0 + deadband / (maxMagnitude - deadband)) * (value - deadband);
+  } else {
+    // Map -deadband to 0 and map -max to -max with a linear relationship.
+    //
+    //   y - y₁ = m(x - x₁)
+    //   y - y₁ = (y₂ - y₁)/(x₂ - x₁) (x - x₁)
+    //   y = (y₂ - y₁)/(x₂ - x₁) (x - x₁) + y₁
+    //
+    // (x₁, y₁) = (-deadband, 0) and (x₂, y₂) = (-max, -max).
+    //
+    //   x₁ = -deadband
+    //   y₁ = 0
+    //   x₂ = -max
+    //   y₂ = -max
+    //   y = (-max - 0)/(-max + deadband) (x + deadband) + 0
+    //   y = max/(max - deadband) (x + deadband)
+    //
+    // To handle high values of max, rewrite so that max only appears on the
+    // denominator.
+    //
+    //   y = ((max - deadband) + deadband)/(max - deadband) (x + deadband)
+    //   y = (1 + deadband/(max - deadband)) (x + deadband)
+    return (1.0 + deadband / (maxMagnitude - deadband)) * (value + deadband);
   }
 }
 
@@ -158,7 +169,7 @@ constexpr bool IsNear(T expected, T actual, T tolerance, T min, T max) {
 }
 
 /**
- * Wraps an angle to the range -pi to pi radians (-180 to 180 degrees).
+ * Wraps an angle to the range -π to π radians (-180 to 180 degrees).
  *
  * @param angle Angle to wrap.
  */
@@ -206,4 +217,65 @@ constexpr std::signed_integral auto FloorMod(std::signed_integral auto x,
                                              std::signed_integral auto y) {
   return x - FloorDiv(x, y) * y;
 }
+
+/**
+ * Limits translation velocity.
+ *
+ * @param current Translation at current timestep.
+ * @param next Translation at next timestep.
+ * @param dt Timestep duration.
+ * @param maxVelocity Maximum translation velocity.
+ * @return Returns the next Translation2d limited to maxVelocity
+ */
+constexpr Translation2d SlewRateLimit(const Translation2d& current,
+                                      const Translation2d& next,
+                                      units::second_t dt,
+                                      units::meters_per_second_t maxVelocity) {
+  if (maxVelocity < 0_mps) {
+    wpi::math::MathSharedStore::ReportError(
+        "maxVelocity must be a non-negative number, got {}!", maxVelocity);
+    return next;
+  }
+  Translation2d diff = next - current;
+  units::meter_t dist = diff.Norm();
+  if (dist < 1e-9_m) {
+    return next;
+  }
+  if (dist > maxVelocity * dt) {
+    // Move maximum allowed amount in direction of the difference
+    return current + diff * (maxVelocity * dt / dist);
+  }
+  return next;
+}
+
+/**
+ * Limits translation velocity.
+ *
+ * @param current Translation at current timestep.
+ * @param next Translation at next timestep.
+ * @param dt Timestep duration.
+ * @param maxVelocity Maximum translation velocity.
+ * @return Returns the next Translation3d limited to maxVelocity
+ */
+constexpr Translation3d SlewRateLimit(const Translation3d& current,
+                                      const Translation3d& next,
+                                      units::second_t dt,
+                                      units::meters_per_second_t maxVelocity) {
+  if (maxVelocity < 0_mps) {
+    wpi::math::MathSharedStore::ReportError(
+        "maxVelocity must be a non-negative number, got {}!", maxVelocity);
+    return next;
+  }
+  Translation3d diff = next - current;
+  units::meter_t dist = diff.Norm();
+  if (dist < 1e-9_m) {
+    return next;
+  }
+  if (dist > maxVelocity * dt) {
+    // Move maximum allowed amount in direction of the difference
+    return current + diff * (maxVelocity * dt / dist);
+  }
+  return next;
+}
+
 }  // namespace frc

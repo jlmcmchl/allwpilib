@@ -32,8 +32,7 @@ ext {
                 }
                 exportedHeaders {
                     srcDirs 'src/main/native/thirdparty/apriltag/include',
-                            'src/main/native/thirdparty/apriltag/include/common',
-                            'src/main/native/thirdparty/apriltag/src'
+                            'src/main/native/thirdparty/apriltag/include/common'
                 }
             }
         }
@@ -104,14 +103,8 @@ model {
                 return
             }
             it.cppCompiler.define 'WPILIB_EXPORTS'
-
-            if (it.component.name == "${nativeName}JNI") {
-                lib project: ':wpimath', library: 'wpimath', linkage: 'static'
-                lib project: ':wpiutil', library: 'wpiutil', linkage: 'static'
-            } else {
-                lib project: ':wpimath', library: 'wpimath', linkage: 'shared'
-                lib project: ':wpiutil', library: 'wpiutil', linkage: 'shared'
-            }
+            lib project: ':wpimath', library: 'wpimath', linkage: 'shared'
+            lib project: ':wpiutil', library: 'wpiutil', linkage: 'shared'
         }
     }
     tasks {

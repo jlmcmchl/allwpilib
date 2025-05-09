@@ -3,10 +3,7 @@
 import os
 import shutil
 
-from upstream_utils import (
-    walk_cwd_and_copy_if,
-    Lib,
-)
+from upstream_utils import Lib, walk_cwd_and_copy_if
 
 
 def copy_upstream_src(wpilib_root):
@@ -24,7 +21,8 @@ def copy_upstream_src(wpilib_root):
     ]
 
     walk_cwd_and_copy_if(
-        lambda dp, f: dp.startswith("./include") and f not in include_ignorelist,
+        lambda dp, f: dp.startswith(os.path.join(".", "include"))
+        and f not in include_ignorelist,
         os.path.join(wpinet, "src/main/native/thirdparty/libuv"),
     )
 
@@ -45,7 +43,8 @@ def copy_upstream_src(wpilib_root):
         "sysinfo-memory.c",
     ]
     walk_cwd_and_copy_if(
-        lambda dp, f: dp.startswith("./src") and f not in src_ignorelist,
+        lambda dp, f: dp.startswith(os.path.join(".", "src"))
+        and f not in src_ignorelist,
         os.path.join(wpinet, "src/main/native/thirdparty/libuv"),
         rename_c_to_cpp=True,
     )
@@ -54,7 +53,7 @@ def copy_upstream_src(wpilib_root):
 def main():
     name = "libuv"
     url = "https://github.com/libuv/libuv"
-    tag = "v1.48.0"
+    tag = "v1.49.2"
 
     libuv = Lib(name, url, tag, copy_upstream_src)
     libuv.main()

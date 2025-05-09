@@ -28,9 +28,8 @@ import edu.wpi.first.math.trajectory.Trajectory;
  * that's the acronym for the title of the book it came from in Italian ("Robotica Articolata e
  * Mobile per i SErvizi e le TEcnologie").
  *
- * <p>See <a href="https://file.tavsys.net/control/controls-engineering-in-frc.pdf">Controls
- * Engineering in the FIRST Robotics Competition</a> section on Ramsete unicycle controller for a
- * derivation and analysis.
+ * <p>See <a href="https://file.tavsys.net/control/ramsete-unicycle-controller.pdf">this paper</a>
+ * for a derivation and analysis.
  */
 public class RamseteController {
   private final double m_b;
@@ -50,7 +49,7 @@ public class RamseteController {
    *     more damping in response.
    * @deprecated Use LTVUnicycleController instead.
    */
-  @Deprecated(since = "2024", forRemoval = true)
+  @Deprecated(since = "2025", forRemoval = true)
   public RamseteController(double b, double zeta) {
     m_b = b;
     m_zeta = zeta;
@@ -62,7 +61,7 @@ public class RamseteController {
    *
    * @deprecated Use LTVUnicycleController instead.
    */
-  @Deprecated(since = "2024", forRemoval = true)
+  @Deprecated(since = "2025", forRemoval = true)
   public RamseteController() {
     this(2.0, 0.7);
   }

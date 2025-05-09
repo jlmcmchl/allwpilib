@@ -5,18 +5,6 @@ include(CompileWarnings)
 include(AddTest)
 include(DownloadAndCheck)
 
-# workaround for makefiles - for some reason parent directories aren't created.
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/protobuf")
-file(GLOB wpimath_proto_src src/main/proto/*.proto)
-protobuf_generate_cpp(
-    WPIMATH_PROTO_SRCS
-    WPIMATH_PROTO_HDRS
-    PROTOC_OUT_DIR
-    "${CMAKE_CURRENT_BINARY_DIR}/protobuf"
-    PROTOS
-    ${wpimath_proto_src}
-)
-
 file(
     GLOB wpimath_jni_src
     src/main/native/cpp/jni/ArmFeedforwardJNI.cpp
@@ -129,7 +117,36 @@ file(
 list(REMOVE_ITEM wpimath_native_src ${wpimath_jni_src})
 
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS FALSE)
-add_library(wpimath ${wpimath_native_src} ${WPIMATH_PROTO_SRCS})
+
+file(GLOB_RECURSE wpimath_protobuf_native_src src/generated/main/native/cpp/wpimath/protobuf/*.cpp)
+
+add_library(protobuf OBJECT ${wpimath_protobuf_native_src})
+target_link_libraries(protobuf wpiutil)
+
+add_library(wpimath ${wpimath_native_src} $<TARGET_OBJECTS:protobuf>)
+
+if(MSVC)
+    get_property(IS_MULTI_CONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+    set(CONFIG_SUFFIX "$<$<BOOL:${IS_MULTI_CONFIG}>:_$<CONFIG>>")
+    file(
+        GENERATE OUTPUT
+        ${CMAKE_CURRENT_BINARY_DIR}/protobuf_objects${CONFIG_SUFFIX}.txt
+        CONTENT $<LIST:JOIN,$<TARGET_OBJECTS:protobuf>,\n>
+    )
+    add_custom_command(
+        TARGET wpimath
+        PRE_LINK
+        COMMAND
+            cmake -E __create_def ${CMAKE_CURRENT_BINARY_DIR}/protobuf_exports${CONFIG_SUFFIX}.def
+            ${CMAKE_CURRENT_BINARY_DIR}/protobuf_objects${CONFIG_SUFFIX}.txt
+    )
+    target_link_options(
+        wpimath
+        PRIVATE
+            /DEF:$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf_exports${CONFIG_SUFFIX}.def>
+    )
+endif()
+
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS TRUE)
 set_target_properties(wpimath PROPERTIES DEBUG_POSTFIX "d")
 
@@ -139,10 +156,6 @@ target_compile_definitions(wpimath PRIVATE WPILIB_EXPORTS SLEIPNIR_EXPORTS)
 target_compile_features(wpimath PUBLIC cxx_std_20)
 if(MSVC)
     target_compile_options(wpimath PUBLIC /utf-8 /bigobj)
-    target_link_options(
-        wpimath
-        PRIVATE /DEF:$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/exports.def>
-    )
 endif()
 wpilib_target_warnings(wpimath)
 target_link_libraries(wpimath wpiutil)
@@ -157,7 +170,6 @@ if(NOT USE_SYSTEM_EIGEN)
         SYSTEM
         PUBLIC
             $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/thirdparty/eigen/include>
-            $<INSTALL_INTERFACE:${include_dest}/wpimath>
     )
 else()
     find_package(Eigen3 CONFIG REQUIRED)
@@ -165,30 +177,30 @@ else()
 endif()
 
 install(
-    DIRECTORY src/main/native/thirdparty/sleipnir/include/
+    DIRECTORY src/main/native/thirdparty/gcem/include/ src/main/native/thirdparty/sleipnir/include/
     DESTINATION "${include_dest}/wpimath"
 )
 target_include_directories(
     wpimath
     SYSTEM
     PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/thirdparty/gcem/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/thirdparty/sleipnir/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/thirdparty/sleipnir/src>
 )
 
-install(DIRECTORY src/main/native/thirdparty/gcem/include/ DESTINATION "${include_dest}/wpimath")
-target_include_directories(
-    wpimath
-    SYSTEM
-    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/thirdparty/gcem/include>
+install(
+    DIRECTORY src/generated/main/native/cpp/
+    DESTINATION "${include_dest}/wpimath"
+    FILES_MATCHING
+    PATTERN "*.h"
 )
-
 install(DIRECTORY src/main/native/include/ DESTINATION "${include_dest}/wpimath")
 target_include_directories(
     wpimath
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/protobuf>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/generated/main/native/cpp>
         $<INSTALL_INTERFACE:${include_dest}/wpimath>
 )
 

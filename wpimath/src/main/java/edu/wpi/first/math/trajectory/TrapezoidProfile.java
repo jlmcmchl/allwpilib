@@ -4,6 +4,10 @@
 
 package edu.wpi.first.math.trajectory;
 
+import edu.wpi.first.math.MathSharedStore;
+import edu.wpi.first.math.MathUsageId;
+import java.util.Objects;
+
 /**
  * A trapezoid-shaped velocity profile.
  *
@@ -37,11 +41,13 @@ package edu.wpi.first.math.trajectory;
 public class TrapezoidProfile extends MotionProfile<TrapezoidCurve> {
   public TrapezoidProfile(TrapezoidCurve.Constraints constraints) {
     super(constraints, constraints);
+    MathSharedStore.reportUsage(MathUsageId.kTrajectory_TrapezoidProfile, 1);
   }
 
   public TrapezoidProfile(
       TrapezoidCurve.Constraints acceleratingConstraints,
       TrapezoidCurve.Constraints brakingConstraints) {
     super(acceleratingConstraints, brakingConstraints);
+    MathSharedStore.reportUsage(MathUsageId.kTrajectory_TrapezoidProfile, 1);
   }
 }

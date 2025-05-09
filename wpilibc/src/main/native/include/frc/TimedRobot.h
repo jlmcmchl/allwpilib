@@ -9,6 +9,7 @@
 #include <utility>
 #include <vector>
 
+#include <hal/Notifier.h>
 #include <hal/Types.h>
 #include <units/math.h>
 #include <units/time.h>
@@ -50,10 +51,21 @@ class TimedRobot : public IterativeRobotBase {
    */
   explicit TimedRobot(units::second_t period = kDefaultPeriod);
 
-  ~TimedRobot() override;
-
   TimedRobot(TimedRobot&&) = default;
   TimedRobot& operator=(TimedRobot&&) = default;
+
+  ~TimedRobot() override;
+
+  /**
+   * Return the system clock time in micrseconds for the start of the current
+   * periodic loop. This is in the same time base as Timer.GetFPGATimestamp(),
+   * but is stable through a loop. It is updated at the beginning of every
+   * periodic callback (including the normal periodic loop).
+   *
+   * @return Robot running time in microseconds, as of the start of the current
+   * periodic function.
+   */
+  uint64_t GetLoopStartTime();
 
   /**
    * Add a callback to run at a specific period with a starting time offset.
@@ -100,8 +112,9 @@ class TimedRobot : public IterativeRobotBase {
     }
   };
 
-  hal::Handle<HAL_NotifierHandle> m_notifier;
+  hal::Handle<HAL_NotifierHandle, HAL_CleanNotifier> m_notifier;
   std::chrono::microseconds m_startTime;
+  uint64_t m_loopStartTimeUs = 0;
 
   wpi::priority_queue<Callback, std::vector<Callback>, std::greater<Callback>>
       m_callbacks;

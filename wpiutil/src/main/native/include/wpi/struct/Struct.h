@@ -113,7 +113,7 @@ concept MutableStructSerializable =
  * In addition to meeting StructSerializable, implementations must define a
  * wpi::Struct<T> static member
  * `void ForEachNested(std::invocable<std::string_view, std::string_view) auto
- * fn)` (or equivalent) and call ForEachNestedStruct<Type> on each nested struct
+ * fn)` (or equivalent) and call ForEachStructSchema<Type> on each nested struct
  * type.
  */
 template <typename T, typename... I>
@@ -166,7 +166,7 @@ inline T UnpackStruct(std::span<const uint8_t> data, const I&... info) {
  * @tparam Offset starting offset
  * @tparam N number of objects
  * @param data raw struct data
- * @return Desrialized array
+ * @return Deserialized array
  */
 template <StructSerializable T, size_t Offset, size_t N>
 inline wpi::array<T, N> UnpackStructArray(std::span<const uint8_t> data) {

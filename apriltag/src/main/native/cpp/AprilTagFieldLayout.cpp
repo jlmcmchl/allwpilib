@@ -5,6 +5,8 @@
 #include "frc/apriltag/AprilTagFieldLayout.h"
 
 #include <system_error>
+#include <utility>
+#include <vector>
 
 #include <units/angle.h>
 #include <units/length.h>
@@ -15,14 +17,12 @@
 using namespace frc;
 
 AprilTagFieldLayout::AprilTagFieldLayout(std::string_view path) {
-  std::error_code ec;
-  std::unique_ptr<wpi::MemoryBuffer> fileBuffer =
-      wpi::MemoryBuffer::GetFile(path, ec);
-  if (fileBuffer == nullptr || ec) {
+  auto fileBuffer = wpi::MemoryBuffer::GetFile(path);
+  if (!fileBuffer) {
     throw std::runtime_error(fmt::format("Cannot open file: {}", path));
   }
 
-  wpi::json json = wpi::json::parse(fileBuffer->GetCharBuffer());
+  wpi::json json = wpi::json::parse(fileBuffer.value()->GetCharBuffer());
 
   for (const auto& tag : json.at("tags").get<std::vector<AprilTag>>()) {
     m_apriltags[tag.ID] = tag;
@@ -133,6 +133,8 @@ namespace frc {
 std::string_view GetResource_2022_rapidreact_json();
 std::string_view GetResource_2023_chargedup_json();
 std::string_view GetResource_2024_crescendo_json();
+std::string_view GetResource_2025_reefscape_welded_json();
+std::string_view GetResource_2025_reefscape_andymark_json();
 
 }  // namespace frc
 
@@ -147,6 +149,12 @@ AprilTagFieldLayout AprilTagFieldLayout::LoadField(AprilTagField field) {
       break;
     case AprilTagField::k2024Crescendo:
       fieldString = GetResource_2024_crescendo_json();
+      break;
+    case AprilTagField::k2025ReefscapeWelded:
+      fieldString = GetResource_2025_reefscape_welded_json();
+      break;
+    case AprilTagField::k2025ReefscapeAndyMark:
+      fieldString = GetResource_2025_reefscape_andymark_json();
       break;
     case AprilTagField::kNumFields:
       throw std::invalid_argument("Invalid Field");

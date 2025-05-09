@@ -4,11 +4,10 @@
 
 package edu.wpi.first.wpilibj2.command;
 
-import static edu.wpi.first.units.Units.Second;
+import static edu.wpi.first.units.Units.Seconds;
 import static edu.wpi.first.util.ErrorMessages.requireNonNullParam;
 
-import edu.wpi.first.units.Measure;
-import edu.wpi.first.units.Time;
+import edu.wpi.first.units.measure.Time;
 import edu.wpi.first.util.function.BooleanConsumer;
 import edu.wpi.first.util.sendable.Sendable;
 import edu.wpi.first.util.sendable.SendableBuilder;
@@ -179,8 +178,8 @@ public abstract class Command implements Sendable {
    * @param time the timeout duration
    * @return the command with the timeout added
    */
-  public ParallelRaceGroup withTimeout(Measure<Time> time) {
-    return withTimeout(time.in(Second));
+  public ParallelRaceGroup withTimeout(Time time) {
+    return withTimeout(time.in(Seconds));
   }
 
   /**
@@ -289,6 +288,24 @@ public abstract class Command implements Sendable {
   }
 
   /**
+   * Creates a new command that runs this command and the deadline in parallel, finishing (and
+   * interrupting this command) when the deadline finishes.
+   *
+   * <p>Note: This decorator works by adding this command to a composition. The command the
+   * decorator was called on cannot be scheduled independently or be added to a different
+   * composition (namely, decorators), unless it is manually cleared from the list of composed
+   * commands with {@link CommandScheduler#removeComposedCommand(Command)}. The command composition
+   * returned from this method can be further decorated without issue.
+   *
+   * @param deadline the deadline of the command group
+   * @return the decorated command
+   * @see Command#deadlineFor
+   */
+  public ParallelDeadlineGroup withDeadline(Command deadline) {
+    return new ParallelDeadlineGroup(deadline, this);
+  }
+
+  /**
    * Decorates this command with a set of commands to run parallel to it, ending when the calling
    * command ends and interrupting all the others. Often more convenient/less-verbose than
    * constructing a new {@link ParallelDeadlineGroup} explicitly.
@@ -319,9 +336,10 @@ public abstract class Command implements Sendable {
    * commands with {@link CommandScheduler#removeComposedCommand(Command)}. The command composition
    * returned from this method can be further decorated without issue.
    *
-   * @param parallel the commands to run in parallel. Note the parallel commands will be interupted
+   * @param parallel the commands to run in parallel. Note the parallel commands will be interrupted
    *     when the deadline command ends
    * @return the decorated command
+   * @see Command#withDeadline
    */
   public ParallelDeadlineGroup deadlineFor(Command... parallel) {
     return new ParallelDeadlineGroup(this, parallel);

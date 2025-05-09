@@ -4,11 +4,7 @@ import os
 import re
 import shutil
 
-from upstream_utils import (
-    comment_out_invalid_includes,
-    walk_cwd_and_copy_if,
-    Lib,
-)
+from upstream_utils import Lib, comment_out_invalid_includes, walk_cwd_and_copy_if
 
 
 def eigen_inclusions(dp, f):
@@ -19,7 +15,7 @@ def eigen_inclusions(dp, f):
     dp -- directory path
     f -- filename
     """
-    if not dp.startswith("./Eigen"):
+    if not dp.startswith(os.path.join(".", "Eigen")):
         return False
 
     abspath = os.path.join(dp, f)
@@ -54,6 +50,7 @@ def eigen_inclusions(dp, f):
         "Cholesky",
         "Core",
         "Eigenvalues",
+        "Geometry",
         "Householder",
         "IterativeLinearSolvers",
         "Jacobi",
@@ -79,7 +76,7 @@ def unsupported_inclusions(dp, f):
     dp -- directory path
     f -- filename
     """
-    if not dp.startswith("./unsupported"):
+    if not dp.startswith(os.path.join(".", "unsupported")):
         return False
 
     abspath = os.path.join(dp, f)
@@ -129,7 +126,8 @@ def copy_upstream_src(wpilib_root):
 def main():
     name = "eigen"
     url = "https://gitlab.com/libeigen/eigen.git"
-    tag = "d14b0a4e531760b6aeccf20b666eaec8bd0b8461"
+    # master on 2024-11-14
+    tag = "0fb2ed140d4fc0108553ecfb25f2d7fc1a9319a1"
 
     eigen = Lib(name, url, tag, copy_upstream_src)
     eigen.main()

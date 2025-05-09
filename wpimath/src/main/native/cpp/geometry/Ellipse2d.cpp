@@ -6,15 +6,9 @@
 
 #include <sleipnir/optimization/OptimizationProblem.hpp>
 
-#include "geometry2d.pb.h"
-
 using namespace frc;
 
-units::meter_t Ellipse2d::Distance(const Translation2d& point) const {
-  return FindNearestPoint(point).Distance(point);
-}
-
-Translation2d Ellipse2d::FindNearestPoint(const Translation2d& point) const {
+Translation2d Ellipse2d::Nearest(const Translation2d& point) const {
   // Check if already in ellipse
   if (Contains(point)) {
     return point;
@@ -40,11 +34,12 @@ Translation2d Ellipse2d::FindNearestPoint(const Translation2d& point) const {
                      slp::pow(y - rotPoint.Y().value(), 2));
 
     // (x − x_c)²/a² + (y − y_c)²/b² = 1
-    problem.SubjectTo(slp::pow(x - m_center.X().value(), 2) /
-                              (m_xSemiAxis.value() * m_xSemiAxis.value()) +
-                          slp::pow(y - m_center.Y().value(), 2) /
-                              (m_ySemiAxis.value() * m_ySemiAxis.value()) ==
-                      1);
+    // b²(x − x_c)² + a²(y − y_c)² = a²b²
+    double a2 = m_xSemiAxis.value() * m_xSemiAxis.value();
+    double b2 = m_ySemiAxis.value() * m_ySemiAxis.value();
+    problem.SubjectTo(b2 * slp::pow(x - m_center.X().value(), 2) +
+                          a2 * slp::pow(y - m_center.Y().value(), 2) ==
+                      a2 * b2);
 
     problem.Solve();
 

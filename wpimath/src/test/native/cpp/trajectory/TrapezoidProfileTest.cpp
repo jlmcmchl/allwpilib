@@ -41,7 +41,7 @@ TEST(TrapezoidProfileTest, ReachesGoal) {
 
 // Tests that decreasing the maximum velocity in the middle when it is already
 // moving faster than the new max is handled correctly
-TEST(TrapezoidProfileTest, PosContinousUnderVelChange) {
+TEST(TrapezoidProfileTest, PosContinuousUnderVelChange) {
   frc::TrapezoidProfile<units::meter>::Constraints constraints{1.75_mps,
                                                                0.75_mps_sq};
   frc::TrapezoidProfile<units::meter>::State goal{12_m, 0_mps};
@@ -233,4 +233,11 @@ TEST(TrapezoidProfileTest, TimingBeforeNegativeGoal) {
       reachedGoal = true;
     }
   }
+}
+
+TEST(TrapezoidProfileTest, InitalizationOfCurrentState) {
+  frc::TrapezoidProfile<units::meter>::Constraints constraints{1_mps, 1_mps_sq};
+  frc::TrapezoidProfile<units::meter> profile{constraints};
+  EXPECT_NEAR_UNITS(profile.TimeLeftUntil(0_m), 0_s, 1e-10_s);
+  EXPECT_NEAR_UNITS(profile.TotalTime(), 0_s, 1e-10_s);
 }

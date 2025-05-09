@@ -14,10 +14,8 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.geometry.Twist2d;
 import edu.wpi.first.math.kinematics.proto.SwerveDriveKinematicsProto;
 import edu.wpi.first.math.kinematics.struct.SwerveDriveKinematicsStruct;
-import edu.wpi.first.units.Angle;
-import edu.wpi.first.units.Distance;
-import edu.wpi.first.units.Measure;
-import edu.wpi.first.units.Velocity;
+import edu.wpi.first.units.measure.AngularVelocity;
+import edu.wpi.first.units.measure.LinearVelocity;
 import edu.wpi.first.util.protobuf.ProtobufSerializable;
 import edu.wpi.first.util.struct.Struct;
 import edu.wpi.first.util.struct.StructSerializable;
@@ -169,7 +167,7 @@ public class SwerveDriveKinematics
       double y = moduleStatesMatrix.get(i * 2 + 1, 0);
 
       double speed = Math.hypot(x, y);
-      Rotation2d angle = new Rotation2d(x, y);
+      Rotation2d angle = speed > 1e-6 ? new Rotation2d(x, y) : m_moduleHeadings[i];
 
       moduleStates[i] = new SwerveModuleState(speed, angle);
       m_moduleHeadings[i] = angle;
@@ -276,6 +274,10 @@ public class SwerveDriveKinematics
    * reduce all the wheel speeds to make sure that all requested module speeds are at-or-below the
    * absolute threshold, while maintaining the ratio of speeds between modules.
    *
+   * <p>Scaling down the module speeds rotates the direction of net motion in the opposite direction
+   * of rotational velocity, which makes discretizing the chassis speeds inaccurate because the
+   * discretization did not account for this translational skew.
+   *
    * @param moduleStates Reference to array of module states. The array will be mutated with the
    *     normalized speeds!
    * @param attainableMaxSpeedMetersPerSecond The absolute max speed that a module can reach.
@@ -302,12 +304,16 @@ public class SwerveDriveKinematics
    * reduce all the wheel speeds to make sure that all requested module speeds are at-or-below the
    * absolute threshold, while maintaining the ratio of speeds between modules.
    *
+   * <p>Scaling down the module speeds rotates the direction of net motion in the opposite direction
+   * of rotational velocity, which makes discretizing the chassis speeds inaccurate because the
+   * discretization did not account for this translational skew.
+   *
    * @param moduleStates Reference to array of module states. The array will be mutated with the
    *     normalized speeds!
    * @param attainableMaxSpeed The absolute max speed that a module can reach.
    */
   public static void desaturateWheelSpeeds(
-      SwerveModuleState[] moduleStates, Measure<Velocity<Distance>> attainableMaxSpeed) {
+      SwerveModuleState[] moduleStates, LinearVelocity attainableMaxSpeed) {
     desaturateWheelSpeeds(moduleStates, attainableMaxSpeed.in(MetersPerSecond));
   }
 
@@ -319,6 +325,10 @@ public class SwerveDriveKinematics
    * above the max attainable speed for the driving motor on that module. To fix this issue, one can
    * reduce all the wheel speeds to make sure that all requested module speeds are at-or-below the
    * absolute threshold, while maintaining the ratio of speeds between modules.
+   *
+   * <p>Scaling down the module speeds rotates the direction of net motion in the opposite direction
+   * of rotational velocity, which makes discretizing the chassis speeds inaccurate because the
+   * discretization did not account for this translational skew.
    *
    * @param moduleStates Reference to array of module states. The array will be mutated with the
    *     normalized speeds!
@@ -367,6 +377,10 @@ public class SwerveDriveKinematics
    * reduce all the wheel speeds to make sure that all requested module speeds are at-or-below the
    * absolute threshold, while maintaining the ratio of speeds between modules.
    *
+   * <p>Scaling down the module speeds rotates the direction of net motion in the opposite direction
+   * of rotational velocity, which makes discretizing the chassis speeds inaccurate because the
+   * discretization did not account for this translational skew.
+   *
    * @param moduleStates Reference to array of module states. The array will be mutated with the
    *     normalized speeds!
    * @param desiredChassisSpeed The desired speed of the robot
@@ -379,9 +393,9 @@ public class SwerveDriveKinematics
   public static void desaturateWheelSpeeds(
       SwerveModuleState[] moduleStates,
       ChassisSpeeds desiredChassisSpeed,
-      Measure<Velocity<Distance>> attainableMaxModuleSpeed,
-      Measure<Velocity<Distance>> attainableMaxTranslationalSpeed,
-      Measure<Velocity<Angle>> attainableMaxRotationalVelocity) {
+      LinearVelocity attainableMaxModuleSpeed,
+      LinearVelocity attainableMaxTranslationalSpeed,
+      AngularVelocity attainableMaxRotationalVelocity) {
     desaturateWheelSpeeds(
         moduleStates,
         desiredChassisSpeed,

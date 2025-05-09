@@ -3,11 +3,7 @@
 import os
 import shutil
 
-from upstream_utils import (
-    copy_to,
-    walk_if,
-    Lib,
-)
+from upstream_utils import Lib, copy_to, walk_if
 
 protobuf_lite_sources = set(
     [
@@ -245,7 +241,7 @@ use_include_files = (
 
 
 def matches(dp, f, files):
-    if not dp.startswith("./src/"):
+    if not dp.startswith(os.path.join(".", "src")):
         return False
     p = dp[6:] + "/" + f
     return p in files

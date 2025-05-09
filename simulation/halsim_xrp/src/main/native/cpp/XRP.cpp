@@ -4,9 +4,11 @@
 
 #include "XRP.h"
 
+#include <bit>
+#include <string>
+
 #include <fmt/format.h>
 #include <wpi/Endian.h>
-#include <wpi/MathExtras.h>
 #include <wpi/json.h>
 
 using namespace wpilibxrp;
@@ -140,6 +142,10 @@ void XRP::HandleServoSimValueChanged(const wpi::json& data) {
     deviceId = 4;
   } else if (data["device"] == "servo2") {
     deviceId = 5;
+  } else if (data["device"] == "servo3") {
+    deviceId = 6;
+  } else if (data["device"] == "servo4") {
+    deviceId = 7;
   }
 
   if (deviceId != -1 && servoData.find("<position") != servoData.end()) {
@@ -243,7 +249,7 @@ void XRP::SetupMotorTag(wpi::raw_uv_ostream& buf) {
 
     // Convert the value
     wpi::support::endian::write32be(value,
-                                    wpi::bit_cast<uint32_t>(motor.second));
+                                    std::bit_cast<uint32_t>(motor.second));
     buf << value[0] << value[1] << value[2] << value[3];
   }
 }
@@ -259,7 +265,7 @@ void XRP::SetupServoTag(wpi::raw_uv_ostream& buf) {
 
     // Convert the value
     wpi::support::endian::write32be(value,
-                                    wpi::bit_cast<uint32_t>(servo.second));
+                                    std::bit_cast<uint32_t>(servo.second));
     buf << value[0] << value[1] << value[2] << value[3];
   }
 }
@@ -281,17 +287,17 @@ void XRP::ReadGyroTag(std::span<const uint8_t> packet) {
 
   packet = packet.subspan(2);  // Skip past the size and tag
   float rate_x =
-      wpi::bit_cast<float>(wpi::support::endian::read32be(&packet[0]));
+      std::bit_cast<float>(wpi::support::endian::read32be(&packet[0]));
   float rate_y =
-      wpi::bit_cast<float>(wpi::support::endian::read32be(&packet[4]));
+      std::bit_cast<float>(wpi::support::endian::read32be(&packet[4]));
   float rate_z =
-      wpi::bit_cast<float>(wpi::support::endian::read32be(&packet[8]));
+      std::bit_cast<float>(wpi::support::endian::read32be(&packet[8]));
   float angle_x =
-      wpi::bit_cast<float>(wpi::support::endian::read32be(&packet[12]));
+      std::bit_cast<float>(wpi::support::endian::read32be(&packet[12]));
   float angle_y =
-      wpi::bit_cast<float>(wpi::support::endian::read32be(&packet[16]));
+      std::bit_cast<float>(wpi::support::endian::read32be(&packet[16]));
   float angle_z =
-      wpi::bit_cast<float>(wpi::support::endian::read32be(&packet[20]));
+      std::bit_cast<float>(wpi::support::endian::read32be(&packet[20]));
 
   // Make the json object
   wpi::json gyroJson;
@@ -312,11 +318,11 @@ void XRP::ReadAccelTag(std::span<const uint8_t> packet) {
 
   packet = packet.subspan(2);  // Skip past the size and tag
   float accel_x =
-      wpi::bit_cast<float>(wpi::support::endian::read32be(&packet[0]));
+      std::bit_cast<float>(wpi::support::endian::read32be(&packet[0]));
   float accel_y =
-      wpi::bit_cast<float>(wpi::support::endian::read32be(&packet[4]));
+      std::bit_cast<float>(wpi::support::endian::read32be(&packet[4]));
   float accel_z =
-      wpi::bit_cast<float>(wpi::support::endian::read32be(&packet[8]));
+      std::bit_cast<float>(wpi::support::endian::read32be(&packet[8]));
 
   wpi::json accelJson;
   accelJson["type"] = "Accel";
@@ -388,8 +394,9 @@ void XRP::ReadEncoderTag(std::span<const uint8_t> packet) {
         static_cast<double>(period_numerator >> 1) / period_denominator;
 
     // If direction is not forward, return negative value for period.
-    if (!(period_numerator & 1))
+    if (!(period_numerator & 1)) {
       period = -period;
+    }
 
     encJson["data"].push_back({wpi::json(">period"), wpi::json(period)});
   }
@@ -406,7 +413,7 @@ void XRP::ReadAnalogTag(std::span<const uint8_t> packet) {
 
   packet = packet.subspan(3);
   float voltage =
-      wpi::bit_cast<float>(wpi::support::endian::read32be(&packet[0]));
+      std::bit_cast<float>(wpi::support::endian::read32be(&packet[0]));
 
   wpi::json analogJson;
   analogJson["type"] = "AI";

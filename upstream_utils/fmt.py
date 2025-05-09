@@ -3,10 +3,7 @@
 import os
 import shutil
 
-from upstream_utils import (
-    walk_cwd_and_copy_if,
-    Lib,
-)
+from upstream_utils import Lib, walk_cwd_and_copy_if
 
 
 def copy_upstream_src(wpilib_root):
@@ -21,13 +18,15 @@ def copy_upstream_src(wpilib_root):
 
     # Copy fmt source files into allwpilib
     walk_cwd_and_copy_if(
-        lambda dp, f: dp.startswith("./src") and f.endswith(".cc") and f != "fmt.cc",
+        lambda dp, f: dp.startswith(os.path.join(".", "src"))
+        and f.endswith(".cc")
+        and f != "fmt.cc",
         os.path.join(wpiutil, "src/main/native/thirdparty/fmtlib"),
     )
 
     # Copy fmt header files into allwpilib
     walk_cwd_and_copy_if(
-        lambda dp, f: dp.startswith("./include/fmt"),
+        lambda dp, f: dp.startswith(os.path.join(".", "include", "fmt")),
         os.path.join(wpiutil, "src/main/native/thirdparty/fmtlib"),
     )
 
@@ -35,7 +34,7 @@ def copy_upstream_src(wpilib_root):
 def main():
     name = "fmt"
     url = "https://github.com/fmtlib/fmt"
-    tag = "11.0.1"
+    tag = "11.1.0"
 
     fmt = Lib(name, url, tag, copy_upstream_src)
     fmt.main()

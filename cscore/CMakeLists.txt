@@ -21,7 +21,7 @@ if(APPLE)
         cscore
         PROPERTIES
             LINK_FLAGS
-                "-framework CoreFoundation -framework AVFoundation -framework Foundation -framework CoreMedia -framework CoreVideo"
+                "-framework CoreFoundation -framework AVFoundation -framework Foundation -framework CoreMedia -framework CoreVideo -framework IOKit"
     )
 elseif(MSVC)
     target_sources(cscore PRIVATE ${cscore_windows_src})
@@ -36,8 +36,8 @@ target_include_directories(
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src/main/native/include>
         $<INSTALL_INTERFACE:${include_dest}/cscore>
+    PRIVATE src/main/native/cpp
 )
-target_include_directories(cscore PRIVATE src/main/native/cpp)
 wpilib_target_warnings(cscore)
 target_link_libraries(cscore PUBLIC wpinet wpiutil ${OpenCV_LIBS})
 

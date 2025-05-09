@@ -11,8 +11,7 @@ import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.hal.NotifierJNI;
-import edu.wpi.first.units.Measure;
-import edu.wpi.first.units.Time;
+import edu.wpi.first.units.measure.Time;
 import java.util.PriorityQueue;
 
 /**
@@ -33,10 +32,9 @@ public class TimedRobot extends IterativeRobotBase {
      * Construct a callback container.
      *
      * @param func The callback to run.
-     * @param startTimeSeconds The common starting point for all callback scheduling in
-     *     microseconds.
-     * @param periodSeconds The period at which to run the callback in microseconds.
-     * @param offsetSeconds The offset from the common starting time in microseconds.
+     * @param startTimeUs The common starting point for all callback scheduling in microseconds.
+     * @param periodUs The period at which to run the callback in microseconds.
+     * @param offsetUs The offset from the common starting time in microseconds.
      */
     Callback(Runnable func, long startTimeUs, long periodUs, long offsetUs) {
       this.func = func;
@@ -55,7 +53,7 @@ public class TimedRobot extends IterativeRobotBase {
 
     @Override
     public int hashCode() {
-      return Double.hashCode(expirationTime);
+      return Long.hashCode(expirationTime);
     }
 
     @Override
@@ -74,6 +72,7 @@ public class TimedRobot extends IterativeRobotBase {
   private final int m_notifier = NotifierJNI.initializeNotifier();
 
   private long m_startTimeUs;
+  private long m_loopStartTimeUs;
 
   private final PriorityQueue<Callback> m_callbacks = new PriorityQueue<>();
 
@@ -129,6 +128,8 @@ public class TimedRobot extends IterativeRobotBase {
         break;
       }
 
+      m_loopStartTimeUs = RobotController.getFPGATime();
+
       callback.func.run();
 
       // Increment the expiration time by the number of full periods it's behind
@@ -158,6 +159,17 @@ public class TimedRobot extends IterativeRobotBase {
   @Override
   public void endCompetition() {
     NotifierJNI.stopNotifier(m_notifier);
+  }
+
+  /**
+   * Return the system clock time in micrseconds for the start of the current periodic loop. This is
+   * in the same time base as Timer.getFPGATimestamp(), but is stable through a loop. It is updated
+   * at the beginning of every periodic callback (including the normal periodic loop).
+   *
+   * @return Robot running time in microseconds, as of the start of the current periodic function.
+   */
+  public long getLoopStartTime() {
+    return m_loopStartTimeUs;
   }
 
   /**
@@ -199,7 +211,7 @@ public class TimedRobot extends IterativeRobotBase {
    * @param callback The callback to run.
    * @param period The period at which to run the callback.
    */
-  public final void addPeriodic(Runnable callback, Measure<Time> period) {
+  public final void addPeriodic(Runnable callback, Time period) {
     addPeriodic(callback, period.in(Seconds));
   }
 
@@ -214,7 +226,7 @@ public class TimedRobot extends IterativeRobotBase {
    * @param offset The offset from the common starting time. This is useful for scheduling a
    *     callback in a different timeslot relative to TimedRobot.
    */
-  public final void addPeriodic(Runnable callback, Measure<Time> period, Measure<Time> offset) {
+  public final void addPeriodic(Runnable callback, Time period, Time offset) {
     addPeriodic(callback, period.in(Seconds), offset.in(Seconds));
   }
 }

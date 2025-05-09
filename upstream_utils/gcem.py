@@ -3,10 +3,7 @@
 import os
 import shutil
 
-from upstream_utils import (
-    walk_cwd_and_copy_if,
-    Lib,
-)
+from upstream_utils import Lib, walk_cwd_and_copy_if
 
 
 def copy_upstream_src(wpilib_root):
@@ -20,7 +17,7 @@ def copy_upstream_src(wpilib_root):
 
     # Copy gcem include files into allwpilib
     walk_cwd_and_copy_if(
-        lambda dp, f: dp.startswith("./include"),
+        lambda dp, f: dp.startswith(os.path.join(".", "include")),
         os.path.join(wpimath, "src/main/native/thirdparty/gcem"),
     )
 

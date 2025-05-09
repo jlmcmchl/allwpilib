@@ -6,8 +6,11 @@
 
 #include <algorithm>
 #include <exception>
+#include <memory>
 #include <numbers>
+#include <string>
 #include <thread>
+#include <vector>
 
 #include <fmt/format.h>
 #include <glass/Context.h>
@@ -51,8 +54,9 @@ void Analyzer::UpdateFeedforwardGains() {
     m_accelRMSE = feedforwardGains.olsResult.rmse;
     m_settings.preset.measurementDelay =
         m_settings.type == FeedbackControllerLoopType::kPosition
-            ? m_manager->GetPositionDelay()
-            : m_manager->GetVelocityDelay();
+            // Clamp feedback measurement delay to ≥ 0
+            ? units::math::max(0_s, m_manager->GetPositionDelay())
+            : units::math::max(0_s, m_manager->GetVelocityDelay());
     PrepareGraphs();
   } catch (const sysid::InvalidDataError& e) {
     m_state = AnalyzerState::kGeneralDataError;
@@ -248,6 +252,13 @@ void Analyzer::Display() {
       }
       break;
     }
+    case AnalyzerState::kMissingTestsError: {
+      CreateErrorPopup(m_errorPopup, m_exception);
+      if (!m_errorPopup) {
+        m_state = AnalyzerState::kWaitingForData;
+      }
+      break;
+    }
     case AnalyzerState::kGeneralDataError:
     case AnalyzerState::kTestDurationError:
     case AnalyzerState::kVelocityThresholdError: {
@@ -266,6 +277,9 @@ void Analyzer::Display() {
 void Analyzer::PrepareData() {
   WPI_INFO(m_logger, "{}", "Preparing data");
   try {
+    if (m_missingTests.size() > 0) {
+      throw sysid::MissingTestsError{m_missingTests};
+    }
     m_manager->PrepareData();
     UpdateFeedforwardGains();
     UpdateFeedbackGains();
@@ -277,6 +291,9 @@ void Analyzer::PrepareData() {
     HandleError(e.what());
   } catch (const sysid::NoDynamicDataError& e) {
     m_state = AnalyzerState::kTestDurationError;
+    HandleError(e.what());
+  } catch (const sysid::MissingTestsError& e) {
+    m_state = AnalyzerState::kMissingTestsError;
     HandleError(e.what());
   } catch (const AnalysisManager::FileReadingError& e) {
     m_state = AnalyzerState::kFileError;
@@ -319,6 +336,10 @@ void Analyzer::HandleError(std::string_view msg) {
   m_exception = msg;
   m_errorPopup = true;
   PrepareRawGraphs();
+}
+
+void Analyzer::SetMissingTests(const std::vector<std::string>& missingTests) {
+  m_missingTests = missingTests;
 }
 
 void Analyzer::DisplayGraphs() {

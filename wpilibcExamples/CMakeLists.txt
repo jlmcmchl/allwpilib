@@ -5,6 +5,11 @@ include(SubDirList)
 
 subdir_list(TEMPLATES ${CMAKE_SOURCE_DIR}/wpilibcExamples/src/main/cpp/templates)
 subdir_list(EXAMPLES ${CMAKE_SOURCE_DIR}/wpilibcExamples/src/main/cpp/examples)
+subdir_list(SNIPPETS ${CMAKE_SOURCE_DIR}/wpilibcExamples/src/main/cpp/snippets)
+
+add_custom_target(wpilibcExamples)
+add_custom_target(wpilibcExamples_test)
+add_custom_target(wpilibcExamples_snippets)
 
 foreach(example ${EXAMPLES})
     file(
@@ -23,19 +28,20 @@ foreach(example ${EXAMPLES})
         romiVendordep
         xrpVendordep
     )
+    add_dependencies(wpilibcExamples ${example})
 
     if(WITH_TESTS AND EXISTS ${CMAKE_SOURCE_DIR}/wpilibcExamples/src/test/cpp/examples/${example})
-        wpilib_add_test(${example} src/test/cpp/examples/${example}/cpp)
-        target_sources(${example}_test PRIVATE ${sources})
+        wpilib_add_test(Example_${example} src/test/cpp/examples/${example}/cpp)
+        target_sources(Example_${example}_test PRIVATE ${sources})
         target_include_directories(
-            ${example}_test
+            Example_${example}_test
             PRIVATE
                 src/main/cpp/examples/${example}/include
                 src/test/cpp/examples/${example}/include
         )
-        target_compile_definitions(${example}_test PUBLIC RUNNING_FRC_TESTS)
+        target_compile_definitions(Example_${example}_test PUBLIC RUNNING_FRC_TESTS)
         target_link_libraries(
-            ${example}_test
+            Example_${example}_test
             apriltag
             wpilibc
             wpilibNewCommands
@@ -43,6 +49,7 @@ foreach(example ${EXAMPLES})
             xrpVendordep
             googletest
         )
+        add_dependencies(wpilibcExamples_test Example_${example}_test)
     endif()
 endforeach()
 
@@ -56,4 +63,18 @@ foreach(template ${TEMPLATES})
     wpilib_target_warnings(${template})
     target_include_directories(${template} PUBLIC src/main/cpp/templates/${template}/include)
     target_link_libraries(${template} wpilibc wpilibNewCommands romiVendordep xrpVendordep)
+    add_dependencies(wpilibcExamples ${template})
+endforeach()
+
+foreach(snippet ${SNIPPETS})
+    file(
+        GLOB_RECURSE sources
+        src/main/cpp/snippets/${snippet}/cpp/*.cpp
+        src/main/cpp/snippets/${snippet}/c/*.c
+    )
+    add_executable(snippet${snippet} ${sources})
+    wpilib_target_warnings(snippet${snippet})
+    target_include_directories(snippet${snippet} PUBLIC src/main/cpp/snippets/${snippet}/include)
+    target_link_libraries(snippet${snippet} wpilibc wpilibNewCommands romiVendordep xrpVendordep)
+    add_dependencies(wpilibcExamples_snippets snippet${snippet})
 endforeach()

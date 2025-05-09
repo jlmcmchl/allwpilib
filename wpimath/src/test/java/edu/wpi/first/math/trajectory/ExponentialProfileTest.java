@@ -4,14 +4,12 @@
 
 package edu.wpi.first.math.trajectory;
 
-import static edu.wpi.first.units.Units.RadiansPerSecond;
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
-import edu.wpi.first.units.MutableMeasure;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -44,11 +42,9 @@ class ExponentialProfileTest {
   private static MotionProfile.State checkDynamics(
       ExponentialProfile profile, MotionProfile.State current, MotionProfile.State goal) {
     var next = profile.calculate(kDt, current, goal);
-    var currentVelocity = MutableMeasure.ofBaseUnits(current.velocity, RadiansPerSecond);
-    var nextVelocity = MutableMeasure.ofBaseUnits(next.velocity, RadiansPerSecond);
-    var signal = feedforward.calculate(currentVelocity, nextVelocity);
+    var signal = feedforward.calculateWithVelocities(current.velocity, next.velocity);
 
-    assertTrue(Math.abs(signal.magnitude()) < constraints.maxInput + 1e-9);
+    assertTrue(Math.abs(signal) < constraints.maxInput + 1e-9);
 
     return next;
   }

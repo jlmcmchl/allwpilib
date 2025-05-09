@@ -8,12 +8,10 @@
 
 #include <array>
 #include <atomic>
-#include <chrono>
+#include <memory>
 #include <span>
 #include <string>
 #include <string_view>
-#include <thread>
-#include <type_traits>
 
 #include <fmt/format.h>
 #include <hal/DriverStation.h>
@@ -33,7 +31,6 @@
 #include <wpi/timestamp.h>
 
 #include "frc/Errors.h"
-#include "frc/MotorSafety.h"
 #include "frc/Timer.h"
 
 using namespace frc;
@@ -681,7 +678,7 @@ void DriverStation::StartDataLog(wpi::log::DataLog& log, bool logJoysticks) {
 void ReportJoystickUnpluggedErrorV(fmt::string_view format,
                                    fmt::format_args args) {
   auto& inst = GetInstance();
-  auto currentTime = Timer::GetFPGATimestamp();
+  auto currentTime = Timer::GetTimestamp();
   if (currentTime > inst.nextMessageTime) {
     ReportErrorV(err::Error, "", 0, "", format, args);
     inst.nextMessageTime = currentTime + kJoystickUnpluggedMessageInterval;
@@ -692,7 +689,7 @@ void ReportJoystickUnpluggedWarningV(fmt::string_view format,
                                      fmt::format_args args) {
   auto& inst = GetInstance();
   if (DriverStation::IsFMSAttached() || !inst.silenceJoystickWarning) {
-    auto currentTime = Timer::GetFPGATimestamp();
+    auto currentTime = Timer::GetTimestamp();
     if (currentTime > inst.nextMessageTime) {
       ReportErrorV(warn::Warning, "", 0, "", format, args);
       inst.nextMessageTime = currentTime + kJoystickUnpluggedMessageInterval;

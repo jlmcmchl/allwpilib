@@ -24,10 +24,8 @@ class ElevatorFeedforwardTest {
 
   @Test
   void testCalculate() {
-    assertEquals(1, m_elevatorFF.calculate(0), 0.002);
-    assertEquals(4.5, m_elevatorFF.calculate(2), 0.002);
-    assertEquals(6.5, m_elevatorFF.calculate(2, 1), 0.002);
-    assertEquals(-0.5, m_elevatorFF.calculate(-2, 1), 0.002);
+    assertEquals(1, m_elevatorFF.calculate(0.0), 0.002);
+    assertEquals(4.5, m_elevatorFF.calculate(2.0), 0.002);
 
     var A = MatBuilder.fill(Nat.N1(), Nat.N1(), -kv / ka);
     var B = MatBuilder.fill(Nat.N1(), Nat.N1(), 1.0 / ka);
@@ -38,18 +36,18 @@ class ElevatorFeedforwardTest {
     var nextR = VecBuilder.fill(3.0);
     assertEquals(
         plantInversion.calculate(r, nextR).get(0, 0) + ks + kg,
-        m_elevatorFF.calculate(2.0, 3.0, dt),
+        m_elevatorFF.calculateWithVelocities(2.0, 3.0),
         0.002);
   }
 
   @Test
-  void testAcheviableVelocity() {
+  void testAchievableVelocity() {
     assertEquals(5, m_elevatorFF.maxAchievableVelocity(11, 1), 0.002);
     assertEquals(-9, m_elevatorFF.minAchievableVelocity(11, 1), 0.002);
   }
 
   @Test
-  void testAcheviableAcceleration() {
+  void testAchievableAcceleration() {
     assertEquals(3.75, m_elevatorFF.maxAchievableAcceleration(12, 2), 0.002);
     assertEquals(7.25, m_elevatorFF.maxAchievableAcceleration(12, -2), 0.002);
     assertEquals(-8.25, m_elevatorFF.minAchievableAcceleration(12, 2), 0.002);

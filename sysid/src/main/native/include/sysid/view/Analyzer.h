@@ -4,9 +4,7 @@
 
 #pragma once
 
-#include <functional>
 #include <memory>
-#include <optional>
 #include <string>
 #include <string_view>
 #include <thread>
@@ -21,7 +19,6 @@
 #include <wpi/StringMap.h>
 
 #include "sysid/analysis/AnalysisManager.h"
-#include "sysid/analysis/AnalysisType.h"
 #include "sysid/analysis/FeedbackAnalysis.h"
 #include "sysid/analysis/FeedbackControllerPreset.h"
 #include "sysid/view/AnalyzerPlot.h"
@@ -50,6 +47,7 @@ class Analyzer : public glass::View {
     kVelocityThresholdError,
     kTestDurationError,
     kGeneralDataError,
+    kMissingTestsError,
     kFileError
   };
   /**
@@ -94,6 +92,11 @@ class Analyzer : public glass::View {
    * Analyzes the selected data.
    */
   void AnalyzeData();
+
+  /**
+   * Used by DataSelector to import any missing tests.
+   */
+  void SetMissingTests(const std::vector<std::string>& missingTests);
 
  private:
   /**
@@ -203,6 +206,7 @@ class Analyzer : public glass::View {
 
   // Stores the exception message.
   std::string m_exception;
+  std::vector<std::string> m_missingTests;
 
   bool m_calcDefaults = false;
 

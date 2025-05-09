@@ -10,7 +10,6 @@
 #include <units/time.h>
 
 #include "frc/EigenCore.h"
-#include "frc/RobotController.h"
 #include "frc/StateSpaceUtil.h"
 #include "frc/system/LinearSystem.h"
 
@@ -53,11 +52,11 @@ class LinearSystemSim {
    * @param dt The time between updates.
    */
   void Update(units::second_t dt) {
-    // Update x. By default, this is the linear system dynamics x_k+1 = Ax_k +
-    // Bu_k
+    // Update x. By default, this is the linear system dynamics xₖ₊₁ = Axₖ +
+    // Buₖ.
     m_x = UpdateX(m_x, m_u, dt);
 
-    // y = Cx + Du
+    // yₖ = Cxₖ + Duₖ
     m_y = m_plant.CalculateY(m_x, m_u);
 
     // Add noise. If the user did not pass a noise vector to the
@@ -116,7 +115,14 @@ class LinearSystemSim {
    *
    * @param state The new state.
    */
-  void SetState(const Vectord<States>& state) { m_x = state; }
+  void SetState(const Vectord<States>& state) {
+    m_x = state;
+
+    // Update the output to reflect the new state.
+    //
+    //   yₖ = Cxₖ + Duₖ
+    m_y = m_plant.CalculateY(m_x, m_u);
+  }
 
  protected:
   /**

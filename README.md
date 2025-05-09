@@ -17,6 +17,7 @@ Welcome to the WPILib project. This repository contains the HAL, WPILibJ, and WP
     - [Custom toolchain location](#custom-toolchain-location)
     - [Formatting/Linting](#formattinglinting)
     - [CMake](#cmake)
+    - [Bazel](#bazel)
   - [Running examples in simulation](#running-examples-in-simulation)
   - [Publishing](#publishing)
   - [Structure and Organization](#structure-and-organization)
@@ -49,7 +50,7 @@ Using Gradle makes building WPILib very straightforward. It only has a few depen
 - C++ compiler
     - On Linux, install GCC 11 or greater
     - On Windows, install [Visual Studio Community 2022](https://visualstudio.microsoft.com/vs/community/) and select the C++ programming language during installation (Gradle can't use the build tools for Visual Studio)
-    - On macOS, install the Xcode command-line build tools via `xcode-select --install`. Xcode 13 or later is required.
+    - On macOS 13.3 or newer, install Xcode 14 or later (the command-line build tools are insufficient).
 - ARM compiler toolchain
     - Run `./gradlew installRoboRioToolchain` after cloning this repository
     - If the WPILib installer was used, this toolchain is already installed
@@ -57,6 +58,8 @@ Using Gradle makes building WPILib very straightforward. It only has a few depen
     - Run `./gradlew installArm32Toolchain` after cloning this repository
 
 On macOS ARM, run `softwareupdate --install-rosetta`. This is necessary to be able to use the macOS x86 roboRIO toolchain on ARM.
+
+On linux, run `sudo apt install gfortran`. This is necessary to be able to build WPIcal on linux platforms.
 
 ## Setup
 
@@ -133,6 +136,9 @@ If you have installed the FRC Toolchain to a directory other than the default, o
 
 Once a PR has been submitted, formatting can be run in CI by commenting `/format` on the PR. A new commit will be pushed with the formatting changes.
 
+> [!NOTE]
+> The `/format` action has been temporarily disabled. The individual formatting commands can be run locally as shown below. Alternately, the Lint and Format action for a PR will upload a patch file that can be downloaded and applied manually.
+
 #### wpiformat
 
 wpiformat can be executed anywhere in the repository via `py -3 -m wpiformat` on Windows or `python3 -m wpiformat` on other platforms.
@@ -145,11 +151,15 @@ If you only want to run the Java autoformatter, run `./gradlew spotlessApply`.
 
 ### Generated files
 
-Several files within WPILib are generated using Jinja. If a PR is opened that modifies these templates then the files can be generated through CI by commenting `/pregen` on the PR. A new commit will be pushed with the regenerated files.
+Several files within WPILib are generated using Jinja. If a PR is opened that modifies these templates then the files can be generated through CI by commenting `/pregen` on the PR. A new commit will be pushed with the regenerated files. See [GeneratedFiles.md](GeneratedFiles.md) for more information.
 
 ### CMake
 
-CMake is also supported for building. See [README-CMAKE.md](README-CMAKE.md).
+CMake is also supported for building. See [README-CMake.md](README-CMake.md).
+
+### Bazel
+
+Bazel is also supported for building. See [README-Bazel.md](README-Bazel.md).
 
 ## Running examples in simulation
 

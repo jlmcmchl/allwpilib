@@ -3,10 +3,7 @@
 import os
 import shutil
 
-from upstream_utils import (
-    copy_to,
-    Lib,
-)
+from upstream_utils import Lib, copy_to
 
 
 def copy_upstream_src(wpilib_root):
@@ -51,8 +48,8 @@ def copy_upstream_src(wpilib_root):
 def main():
     name = "sleipnir"
     url = "https://github.com/SleipnirGroup/Sleipnir"
-    # main on 2024-08-03
-    tag = "4f182964d9bbb1c703260bddbfaa0c4435097675"
+    # main on 2024-12-07
+    tag = "01206ab17d741f4c45a7faeb56b8a5442df1681c"
 
     sleipnir = Lib(name, url, tag, copy_upstream_src)
     sleipnir.main()

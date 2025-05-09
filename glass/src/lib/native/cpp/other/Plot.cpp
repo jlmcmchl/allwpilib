@@ -12,6 +12,7 @@
 #include <memory>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include <fmt/format.h>
@@ -21,7 +22,6 @@
 #pragma GCC diagnostic ignored "-Wformat-nonliteral"
 #endif
 
-#define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_stdlib.h>
 #include <implot.h>
@@ -29,7 +29,6 @@
 #include <wpi/Signal.h>
 #include <wpi/SmallString.h>
 #include <wpi/SmallVector.h>
-#include <wpi/StringExtras.h>
 #include <wpi/timestamp.h>
 
 #include "glass/Context.h"

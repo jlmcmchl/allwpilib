@@ -195,7 +195,7 @@ void InteriorPoint(std::span<Variable> decisionVariables,
   // Fraction-to-the-boundary rule scale factor τ
   double τ = τ_min;
 
-  Filter filter{f, μ};
+  Filter filter{f};
 
   // This should be run when the error estimate is below a desired threshold for
   // the current barrier parameter
@@ -222,7 +222,7 @@ void InteriorPoint(std::span<Variable> decisionVariables,
     τ = std::max(τ_min, 1.0 - μ);
 
     // Reset the filter when the barrier parameter is updated
-    filter.Reset(μ);
+    filter.Reset();
   };
 
   // Kept outside the loop so its storage can be reused
@@ -240,11 +240,16 @@ void InteriorPoint(std::span<Variable> decisionVariables,
   // Error estimate
   double E_0 = std::numeric_limits<double>::infinity();
 
-  iterationsStartTime = std::chrono::system_clock::now();
+  if (config.diagnostics) {
+    iterationsStartTime = std::chrono::system_clock::now();
+  }
 
   while (E_0 > config.tolerance &&
          acceptableIterCounter < config.maxAcceptableIterations) {
-    auto innerIterStartTime = std::chrono::system_clock::now();
+    std::chrono::system_clock::time_point innerIterStartTime;
+    if (config.diagnostics) {
+      innerIterStartTime = std::chrono::system_clock::now();
+    }
 
     // Check for local equality constraint infeasibility
     if (IsEqualityLocallyInfeasible(A_e, c_e)) {
@@ -367,6 +372,9 @@ void InteriorPoint(std::span<Variable> decisionVariables,
     rhs.segment(x.rows(), y.rows()) = -c_e;
 
     // Solve the Newton-KKT system
+    //
+    // [H + AᵢᵀΣAᵢ  Aₑᵀ][ pₖˣ] = −[∇f − Aₑᵀy + Aᵢᵀ(S⁻¹(Zcᵢ − μe) − z)]
+    // [    Aₑ       0 ][−pₖʸ]    [                cₑ                ]
     solver.Compute(lhs, equalityConstraints.size(), μ);
     Eigen::VectorXd step{x.rows() + y.rows()};
     if (solver.Info() == Eigen::Success) {
@@ -430,7 +438,7 @@ void InteriorPoint(std::span<Variable> decisionVariables,
       }
 
       // Check whether filter accepts trial iterate
-      auto entry = filter.MakeEntry(trial_s, trial_c_e, trial_c_i);
+      auto entry = filter.MakeEntry(trial_s, trial_c_e, trial_c_i, μ);
       if (filter.TryAdd(entry)) {
         // Accept step
         break;
@@ -494,7 +502,7 @@ void InteriorPoint(std::span<Variable> decisionVariables,
           trial_c_i = c_iAD.Value();
 
           // Check whether filter accepts trial iterate
-          entry = filter.MakeEntry(trial_s, trial_c_e, trial_c_i);
+          entry = filter.MakeEntry(trial_s, trial_c_e, trial_c_i, μ);
           if (filter.TryAdd(entry)) {
             p_x = p_x_cor;
             p_y = p_y_soc;
@@ -526,7 +534,7 @@ void InteriorPoint(std::span<Variable> decisionVariables,
       if (fullStepRejectedCounter >= 4 &&
           filter.maxConstraintViolation > entry.constraintViolation / 10.0) {
         filter.maxConstraintViolation *= 0.1;
-        filter.Reset(μ);
+        filter.Reset();
         continue;
       }
 
@@ -575,7 +583,7 @@ void InteriorPoint(std::span<Variable> decisionVariables,
           return;
         }
 
-        auto initialEntry = filter.MakeEntry(s, c_e, c_i);
+        auto initialEntry = filter.MakeEntry(s, c_e, c_i, μ);
 
         // Feasibility restoration phase
         Eigen::VectorXd fr_x = x;
@@ -598,7 +606,7 @@ void InteriorPoint(std::span<Variable> decisionVariables,
               // If current iterate is acceptable to normal filter and
               // constraint violation has sufficiently reduced, stop
               // feasibility restoration
-              auto entry = filter.MakeEntry(trial_s, trial_c_e, trial_c_i);
+              auto entry = filter.MakeEntry(trial_s, trial_c_e, trial_c_i, μ);
               if (filter.IsAcceptable(entry) &&
                   entry.constraintViolation <
                       0.9 * initialEntry.constraintViolation) {

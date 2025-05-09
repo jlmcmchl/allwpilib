@@ -6,6 +6,7 @@ package edu.wpi.first.epilogue.processor;
 
 import static com.google.testing.compile.CompilationSubject.assertThat;
 import static com.google.testing.compile.Compiler.javac;
+import static edu.wpi.first.epilogue.processor.CompileTestOptions.kJavaVersionOptions;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.google.testing.compile.Compilation;
@@ -30,9 +31,21 @@ class EpilogueGeneratorTest {
         """
         package edu.wpi.first.epilogue;
 
+        import static edu.wpi.first.units.Units.Seconds;
+
+        import edu.wpi.first.hal.FRCNetComm;
+        import edu.wpi.first.hal.HAL;
+
         import edu.wpi.first.epilogue.ExampleLogger;
 
         public final class Epilogue {
+          static {
+            HAL.report(
+              FRCNetComm.tResourceType.kResourceType_LoggingFramework,
+              FRCNetComm.tInstances.kLoggingFramework_Epilogue
+            );
+          }
+
           private static final EpilogueConfiguration config = new EpilogueConfiguration();
 
           public static final ExampleLogger exampleLogger = new ExampleLogger();
@@ -77,9 +90,21 @@ class EpilogueGeneratorTest {
         """
         package edu.wpi.first.epilogue;
 
+        import static edu.wpi.first.units.Units.Seconds;
+
+        import edu.wpi.first.hal.FRCNetComm;
+        import edu.wpi.first.hal.HAL;
+
         import edu.wpi.first.epilogue.ExampleLogger;
 
         public final class Epilogue {
+          static {
+            HAL.report(
+              FRCNetComm.tResourceType.kResourceType_LoggingFramework,
+              FRCNetComm.tInstances.kLoggingFramework_Epilogue
+            );
+          }
+
           private static final EpilogueConfiguration config = new EpilogueConfiguration();
 
           public static final ExampleLogger exampleLogger = new ExampleLogger();
@@ -119,9 +144,21 @@ class EpilogueGeneratorTest {
         """
         package edu.wpi.first.epilogue;
 
+        import static edu.wpi.first.units.Units.Seconds;
+
+        import edu.wpi.first.hal.FRCNetComm;
+        import edu.wpi.first.hal.HAL;
+
         import edu.wpi.first.epilogue.ExampleLogger;
 
         public final class Epilogue {
+          static {
+            HAL.report(
+              FRCNetComm.tResourceType.kResourceType_LoggingFramework,
+              FRCNetComm.tInstances.kLoggingFramework_Epilogue
+            );
+          }
+
           private static final EpilogueConfiguration config = new EpilogueConfiguration();
 
           public static final ExampleLogger exampleLogger = new ExampleLogger();
@@ -142,6 +179,17 @@ class EpilogueGeneratorTest {
           }
 
           /**
+           * Updates Epilogue. This must be called periodically in order for Epilogue to record
+           * new values. Alternatively, {@code bind()} can be used to update at an offset from
+           * the main robot loop.
+           */
+          public static void update(edu.wpi.first.epilogue.Example robot) {
+            long start = System.nanoTime();
+            exampleLogger.tryUpdate(config.backend.getNested(config.root), robot, config.errorHandler);
+            config.backend.log(\"Epilogue/Stats/Last Run\", (System.nanoTime() - start) / 1e6);
+          }
+
+          /**
            * Binds Epilogue updates to a timed robot's update period. Log calls will be made at the
            * same update rate as the robot's loop function, but will be offset by a full phase
            * (for example, a 20ms update rate but 10ms offset from the main loop invocation) to
@@ -150,11 +198,16 @@ class EpilogueGeneratorTest {
            * loop.
            */
           public static void bind(edu.wpi.first.epilogue.Example robot) {
+            if (config.loggingPeriod == null) {
+              config.loggingPeriod = Seconds.of(robot.getPeriod());
+            }
+            if (config.loggingPeriodOffset == null) {
+              config.loggingPeriodOffset = config.loggingPeriod.div(2);
+            }
+
             robot.addPeriodic(() -> {
-              long start = System.nanoTime();
-              exampleLogger.tryUpdate(config.dataLogger.getSubLogger(config.root), robot, config.errorHandler);
-              edu.wpi.first.networktables.NetworkTableInstance.getDefault().getEntry("Epilogue/Stats/Last Run").setDouble((System.nanoTime() - start) / 1e6);
-            }, robot.getPeriod(), robot.getPeriod() / 2);
+              update(robot);
+            }, config.loggingPeriod.in(Seconds), config.loggingPeriodOffset.in(Seconds));
           }
         }
         """;
@@ -179,10 +232,22 @@ class EpilogueGeneratorTest {
         """
         package edu.wpi.first.epilogue;
 
+        import static edu.wpi.first.units.Units.Seconds;
+
+        import edu.wpi.first.hal.FRCNetComm;
+        import edu.wpi.first.hal.HAL;
+
         import edu.wpi.first.epilogue.AlphaBotLogger;
         import edu.wpi.first.epilogue.BetaBotLogger;
 
         public final class Epilogue {
+          static {
+            HAL.report(
+              FRCNetComm.tResourceType.kResourceType_LoggingFramework,
+              FRCNetComm.tInstances.kLoggingFramework_Epilogue
+            );
+          }
+
           private static final EpilogueConfiguration config = new EpilogueConfiguration();
 
           public static final AlphaBotLogger alphaBotLogger = new AlphaBotLogger();
@@ -204,6 +269,17 @@ class EpilogueGeneratorTest {
           }
 
           /**
+           * Updates Epilogue. This must be called periodically in order for Epilogue to record
+           * new values. Alternatively, {@code bind()} can be used to update at an offset from
+           * the main robot loop.
+           */
+          public static void update(edu.wpi.first.epilogue.AlphaBot robot) {
+            long start = System.nanoTime();
+            alphaBotLogger.tryUpdate(config.backend.getNested(config.root), robot, config.errorHandler);
+            config.backend.log(\"Epilogue/Stats/Last Run\", (System.nanoTime() - start) / 1e6);
+          }
+
+          /**
            * Binds Epilogue updates to a timed robot's update period. Log calls will be made at the
            * same update rate as the robot's loop function, but will be offset by a full phase
            * (for example, a 20ms update rate but 10ms offset from the main loop invocation) to
@@ -212,11 +288,27 @@ class EpilogueGeneratorTest {
            * loop.
            */
           public static void bind(edu.wpi.first.epilogue.AlphaBot robot) {
+            if (config.loggingPeriod == null) {
+              config.loggingPeriod = Seconds.of(robot.getPeriod());
+            }
+            if (config.loggingPeriodOffset == null) {
+              config.loggingPeriodOffset = config.loggingPeriod.div(2);
+            }
+
             robot.addPeriodic(() -> {
-              long start = System.nanoTime();
-              alphaBotLogger.tryUpdate(config.dataLogger.getSubLogger(config.root), robot, config.errorHandler);
-              edu.wpi.first.networktables.NetworkTableInstance.getDefault().getEntry("Epilogue/Stats/Last Run").setDouble((System.nanoTime() - start) / 1e6);
-            }, robot.getPeriod(), robot.getPeriod() / 2);
+              update(robot);
+            }, config.loggingPeriod.in(Seconds), config.loggingPeriodOffset.in(Seconds));
+          }
+
+          /**
+           * Updates Epilogue. This must be called periodically in order for Epilogue to record
+           * new values. Alternatively, {@code bind()} can be used to update at an offset from
+           * the main robot loop.
+           */
+          public static void update(edu.wpi.first.epilogue.BetaBot robot) {
+            long start = System.nanoTime();
+            betaBotLogger.tryUpdate(config.backend.getNested(config.root), robot, config.errorHandler);
+            config.backend.log(\"Epilogue/Stats/Last Run\", (System.nanoTime() - start) / 1e6);
           }
 
           /**
@@ -228,11 +320,16 @@ class EpilogueGeneratorTest {
            * loop.
            */
           public static void bind(edu.wpi.first.epilogue.BetaBot robot) {
+            if (config.loggingPeriod == null) {
+              config.loggingPeriod = Seconds.of(robot.getPeriod());
+            }
+            if (config.loggingPeriodOffset == null) {
+              config.loggingPeriodOffset = config.loggingPeriod.div(2);
+            }
+
             robot.addPeriodic(() -> {
-              long start = System.nanoTime();
-              betaBotLogger.tryUpdate(config.dataLogger.getSubLogger(config.root), robot, config.errorHandler);
-              edu.wpi.first.networktables.NetworkTableInstance.getDefault().getEntry("Epilogue/Stats/Last Run").setDouble((System.nanoTime() - start) / 1e6);
-            }, robot.getPeriod(), robot.getPeriod() / 2);
+              update(robot);
+            }, config.loggingPeriod.in(Seconds), config.loggingPeriodOffset.in(Seconds));
           }
         }
         """;
@@ -257,7 +354,7 @@ class EpilogueGeneratorTest {
           public CustomLogger() { super(A.class); }
 
           @Override
-          public void update(DataLogger logger, A object) {} // implementation is irrelevant
+          public void update(EpilogueBackend backend, A object) {} // implementation is irrelevant
         }
 
         @Logged
@@ -272,10 +369,22 @@ class EpilogueGeneratorTest {
         """
         package edu.wpi.first.epilogue;
 
+        import static edu.wpi.first.units.Units.Seconds;
+
+        import edu.wpi.first.hal.FRCNetComm;
+        import edu.wpi.first.hal.HAL;
+
         import edu.wpi.first.epilogue.ExampleLogger;
         import edu.wpi.first.epilogue.CustomLogger;
 
         public final class Epilogue {
+          static {
+            HAL.report(
+              FRCNetComm.tResourceType.kResourceType_LoggingFramework,
+              FRCNetComm.tInstances.kLoggingFramework_Epilogue
+            );
+          }
+
           private static final EpilogueConfiguration config = new EpilogueConfiguration();
 
           public static final ExampleLogger exampleLogger = new ExampleLogger();
@@ -305,6 +414,7 @@ class EpilogueGeneratorTest {
       String loggedClassContent, String loggerClassContent) {
     Compilation compilation =
         javac()
+            .withOptions(kJavaVersionOptions)
             .withProcessors(new AnnotationProcessor())
             .compile(JavaFileObjects.forSourceString("", loggedClassContent));
 

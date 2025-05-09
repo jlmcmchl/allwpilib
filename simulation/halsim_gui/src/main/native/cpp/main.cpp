@@ -2,14 +2,14 @@
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
 
+#include <cstdio>
+#include <memory>
+#include <string_view>
+
 #include <glass/Context.h>
 #include <glass/Storage.h>
 #include <glass/hardware/Pneumatic.h>
 #include <glass/other/Plot.h>
-
-#include <cstdio>
-#include <string_view>
-
 #include <hal/Extensions.h>
 #include <hal/Main.h>
 #include <imgui.h>
@@ -148,7 +148,7 @@ __declspec(dllexport)
       gPlotProvider->DisplayMenu();
       ImGui::EndMenu();
     }
-    if (ImGui::BeginMenu("Window")) {
+    if (HALSimGui::manager->GetNumWindows() > 0 && ImGui::BeginMenu("Window")) {
       HALSimGui::manager->DisplayMenu();
       ImGui::EndMenu();
     }

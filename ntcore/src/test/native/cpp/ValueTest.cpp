@@ -3,7 +3,10 @@
 // the WPILib BSD license file in the root directory of this project.
 
 #include <algorithm>
+#include <string>
 #include <string_view>
+#include <utility>
+#include <vector>
 
 #include <gtest/gtest.h>
 
@@ -13,7 +16,7 @@
 
 using namespace std::string_view_literals;
 
-namespace std {  // NOLINT(clang-tidy.cert-dcl58-cpp)
+namespace std {  // NOLINT (clang-tidy.cert-dcl58-cpp)
 template <typename T, typename U>
 inline bool operator==(std::span<T> lhs, std::span<U> rhs) {
   if (lhs.size() != rhs.size()) {
@@ -268,6 +271,8 @@ TEST_F(ValueTest, StringArray) {
   NT_DisposeValue(&cv);
 }
 
+// Google Test doesn't have ASSERT_DEATH when compiled with emscripten
+#ifndef __EMSCRIPTEN__
 #ifdef NDEBUG
 TEST_F(ValueDeathTest, DISABLED_GetAssertions) {
 #else
@@ -282,6 +287,7 @@ TEST_F(ValueDeathTest, GetAssertions) {
   ASSERT_DEATH((void)v.GetDoubleArray(), "type == NT_DOUBLE_ARRAY");
   ASSERT_DEATH((void)v.GetStringArray(), "type == NT_STRING_ARRAY");
 }
+#endif
 
 TEST_F(ValueTest, UnassignedComparison) {
   Value v1, v2;

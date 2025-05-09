@@ -180,6 +180,9 @@ public final class CommandScheduler implements Sendable, AutoCloseable {
    * using those requirements have been scheduled as interruptible. If this is the case, they will
    * be interrupted and the command will be scheduled.
    *
+   * <p>WARNING: using this function directly can often lead to unexpected behavior and should be
+   * avoided. Instead Triggers should be used to schedule Commands.
+   *
    * @param command the command to schedule. If null, no-op.
    */
   private void schedule(Command command) {
@@ -229,6 +232,9 @@ public final class CommandScheduler implements Sendable, AutoCloseable {
 
   /**
    * Schedules multiple commands for execution. Does nothing for commands already scheduled.
+   *
+   * <p>WARNING: using this function directly can often lead to unexpected behavior and should be
+   * avoided. Instead Triggers should be used to schedule Commands.
    *
    * @param commands the commands to schedule. No-op on null.
    */
@@ -501,11 +507,28 @@ public final class CommandScheduler implements Sendable, AutoCloseable {
    * scheduled by the scheduler; it will not work on commands inside compositions, as the scheduler
    * does not see them.
    *
-   * @param commands the command to query
-   * @return whether the command is currently scheduled
+   * @param commands multiple commands to check
+   * @return whether all of the commands are currently scheduled
    */
   public boolean isScheduled(Command... commands) {
-    return m_scheduledCommands.containsAll(Set.of(commands));
+    for (var cmd : commands) {
+      if (!isScheduled(cmd)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Whether the given commands are running. Note that this only works on commands that are directly
+   * scheduled by the scheduler; it will not work on commands inside compositions, as the scheduler
+   * does not see them.
+   *
+   * @param command a single command to check
+   * @return whether all of the commands are currently scheduled
+   */
+  public boolean isScheduled(Command command) {
+    return m_scheduledCommands.contains(command);
   }
 
   /**

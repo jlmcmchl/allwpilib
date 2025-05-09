@@ -4,9 +4,6 @@
 
 package edu.wpi.first.wpilibj.examples.flywheelbangbangcontroller;
 
-import static edu.wpi.first.units.Units.RadiansPerSecond;
-import static edu.wpi.first.units.Units.Volts;
-
 import edu.wpi.first.math.controller.BangBangController;
 import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.numbers.N1;
@@ -41,7 +38,7 @@ public class Robot extends TimedRobot {
   private final PWMSparkMax m_flywheelMotor = new PWMSparkMax(kMotorPort);
   private final Encoder m_encoder = new Encoder(kEncoderAChannel, kEncoderBChannel);
 
-  private final BangBangController m_bangBangControler = new BangBangController();
+  private final BangBangController m_bangBangController = new BangBangController();
 
   // Gains are for example purposes only - must be determined for your own robot!
   public static final double kFlywheelKs = 0.0001; // V
@@ -69,8 +66,8 @@ public class Robot extends TimedRobot {
   private final EncoderSim m_encoderSim = new EncoderSim(m_encoder);
 
   public Robot() {
-    // Add bang-bang controler to SmartDashboard and networktables.
-    SmartDashboard.putData(m_bangBangControler);
+    // Add bang-bang controller to SmartDashboard and networktables.
+    SmartDashboard.putData(m_bangBangController);
   }
 
   /** Controls flywheel to a set speed (RPM) controlled by a joystick. */
@@ -84,13 +81,12 @@ public class Robot extends TimedRobot {
                 * Units.rotationsPerMinuteToRadiansPerSecond(kMaxSetpointValue));
 
     // Set setpoint and measurement of the bang-bang controller
-    double bangOutput = m_bangBangControler.calculate(m_encoder.getRate(), setpoint) * 12.0;
+    double bangOutput = m_bangBangController.calculate(m_encoder.getRate(), setpoint) * 12.0;
 
     // Controls a motor with the output of the BangBang controller and a
     // feedforward. The feedforward is reduced slightly to avoid overspeeding
     // the shooter.
-    m_flywheelMotor.setVoltage(
-        bangOutput + 0.9 * m_feedforward.calculate(RadiansPerSecond.of(setpoint)).in(Volts));
+    m_flywheelMotor.setVoltage(bangOutput + 0.9 * m_feedforward.calculate(setpoint));
   }
 
   /** Update our simulation. This should be run every robot loop in simulation. */

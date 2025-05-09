@@ -22,7 +22,7 @@ public final class DAREJNI extends WPIMathJNI {
    * </ul>
    *
    * <p>Only use this function if you're sure the preconditions are met. Solves the discrete
-   * alegebraic Riccati equation.
+   * algebraic Riccati equation.
    *
    * @param A Array containing elements of A in row-major order.
    * @param B Array containing elements of B in row-major order.
@@ -32,7 +32,7 @@ public final class DAREJNI extends WPIMathJNI {
    * @param inputs Number of inputs in B matrix.
    * @param S Array storage for DARE solution.
    */
-  public static native void dareDetailABQR(
+  public static native void dareNoPrecondABQR(
       double[] A, double[] B, double[] Q, double[] R, int states, int inputs, double[] S);
 
   /**
@@ -87,7 +87,7 @@ public final class DAREJNI extends WPIMathJNI {
    * @param inputs Number of inputs in B matrix.
    * @param S Array storage for DARE solution.
    */
-  public static native void dareDetailABQRN(
+  public static native void dareNoPrecondABQRN(
       double[] A,
       double[] B,
       double[] Q,

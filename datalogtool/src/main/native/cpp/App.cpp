@@ -10,11 +10,9 @@
 #include <glass/Context.h>
 #include <glass/MainMenuBar.h>
 #include <glass/Storage.h>
-#include <libssh/libssh.h>
-
-#define IMGUI_DEFINE_MATH_OPERATORS
 #include <imgui.h>
 #include <imgui_internal.h>
+#include <libssh/libssh.h>
 #include <wpigui.h>
 #include <wpigui_openurl.h>
 
@@ -97,7 +95,7 @@ static void DisplayMainMenu() {
     if (ImGui::MenuItem("Online documentation")) {
       wpi::gui::OpenURL(
           "https://docs.wpilib.org/en/stable/docs/software/telemetry/"
-          "datalog.html");
+          "datalog-download.html");
     }
     ImGui::EndMenu();
   }

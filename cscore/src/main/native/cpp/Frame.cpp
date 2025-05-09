@@ -5,29 +5,33 @@
 #include "Frame.h"
 
 #include <cstdlib>
+#include <memory>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
 #include "Instance.h"
-#include "Log.h"
 #include "SourceImpl.h"
 
 using namespace cs;
 
-Frame::Frame(SourceImpl& source, std::string_view error, Time time)
+Frame::Frame(SourceImpl& source, std::string_view error, Time time,
+             WPI_TimestampSource timeSrc)
     : m_impl{source.AllocFrameImpl().release()} {
   m_impl->refcount = 1;
   m_impl->error = error;
   m_impl->time = time;
+  m_impl->timeSource = timeSrc;
 }
 
-Frame::Frame(SourceImpl& source, std::unique_ptr<Image> image, Time time)
+Frame::Frame(SourceImpl& source, std::unique_ptr<Image> image, Time time,
+             WPI_TimestampSource timeSrc)
     : m_impl{source.AllocFrameImpl().release()} {
   m_impl->refcount = 1;
   m_impl->error.resize(0);
   m_impl->time = time;
+  m_impl->timeSource = timeSrc;
   m_impl->images.push_back(image.release());
 }
 

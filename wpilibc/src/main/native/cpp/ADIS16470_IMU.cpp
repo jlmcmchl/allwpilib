@@ -13,21 +13,19 @@
 
 #include "frc/ADIS16470_IMU.h"
 
-#include <frc/DigitalInput.h>
-#include <frc/DigitalSource.h>
-#include <frc/DriverStation.h>
-#include <frc/Timer.h>
-
 #include <cmath>
 #include <numbers>
 #include <utility>
 
+#include <fmt/format.h>
 #include <hal/HAL.h>
 #include <wpi/sendable/SendableBuilder.h>
 #include <wpi/sendable/SendableRegistry.h>
 
+#include "frc/DigitalInput.h"
 #include "frc/Errors.h"
 #include "frc/MathUtil.h"
+#include "frc/Timer.h"
 
 /* Helpful conversion functions */
 static inline int32_t ToInt(const uint32_t* buf) {
@@ -121,10 +119,6 @@ ADIS16470_IMU::ADIS16470_IMU(IMUAxis yaw_axis, IMUAxis pitch_axis,
     m_reset_in = new DigitalInput(27);  // Set SPI CS2 (IMU RST) high
     Wait(500_ms);                       // Wait for reset to complete
 
-    m_spi = new SPI(m_spi_port);
-    m_spi->SetClockRate(2000000);
-    m_spi->SetMode(frc::SPI::Mode::kMode3);
-    m_spi->SetChipSelectActiveLow();
     // Configure standard SPI
     if (!SwitchToStandardSPI()) {
       return;
@@ -189,7 +183,6 @@ ADIS16470_IMU::ADIS16470_IMU(IMUAxis yaw_axis, IMUAxis pitch_axis,
     // Write offset calibration command to IMU
     WriteRegister(GLOB_CMD, 0x0001);
 
-    m_auto_interrupt = new DigitalInput(26);
     // Configure and enable auto SPI
     if (!SwitchToAutoSPI()) {
       return;
@@ -334,7 +327,7 @@ bool ADIS16470_IMU::SwitchToStandardSPI() {
       Wait(10_ms);
     }
     // Maybe we're in auto SPI mode? If so, kill auto SPI, and then SPI.
-    if (m_auto_configured) {
+    if (m_spi != nullptr && m_auto_configured) {
       m_spi->StopAuto();
       // We need to get rid of all the garbage left in the auto SPI buffer after
       // stopping it.
@@ -352,11 +345,19 @@ bool ADIS16470_IMU::SwitchToStandardSPI() {
       }
     }
   }
+  // There doesn't seem to be a SPI port active. Let's try to set one up
+  if (m_spi == nullptr) {
+    m_spi = new SPI(m_spi_port);
+    m_spi->SetClockRate(2000000);
+    m_spi->SetMode(frc::SPI::Mode::kMode3);
+    m_spi->SetChipSelectActiveLow();
+  }
   ReadRegister(PROD_ID);  // Dummy read
   // Validate the product ID
   uint16_t prod_id = ReadRegister(PROD_ID);
   if (prod_id != 16982 && prod_id != 16470) {
-    REPORT_ERROR("Could not find ADIS16470!");
+    REPORT_ERROR(
+        fmt::format("Could not find ADIS16470; got product ID {}", prod_id));
     Close();
     return false;
   }
@@ -380,6 +381,16 @@ bool ADIS16470_IMU::SwitchToStandardSPI() {
  *are hard-coded to work only with the ADIS16470 IMU.
  **/
 bool ADIS16470_IMU::SwitchToAutoSPI() {
+  // No SPI port has been set up. Go set one up first.
+  if (m_spi == nullptr && !SwitchToStandardSPI()) {
+    REPORT_ERROR("Failed to start/restart auto SPI");
+    return false;
+  }
+
+  // Only set up the interrupt if needed.
+  if (m_auto_interrupt == nullptr) {
+    m_auto_interrupt = new DigitalInput(26);
+  }
   // The auto SPI controller gets angry if you try to set up two instances on
   // one bus.
   if (!m_auto_configured) {
@@ -818,7 +829,7 @@ units::degree_t ADIS16470_IMU::GetAngle(IMUAxis axis) const {
       break;
   }
 
-  return units::degree_t{0.0};
+  return 0_deg;
 }
 
 units::degrees_per_second_t ADIS16470_IMU::GetRate(IMUAxis axis) const {
