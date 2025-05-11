@@ -8,8 +8,8 @@ package edu.wpi.first.math.trajectory;
  * precise position control is less important than velocity tracking.
  */
 public class VelocityMotionProfile extends MotionProfile {
-  private final MotionProfile.Constraints<?> m_forwardConstraints;
-  private final MotionProfile.Constraints<?> m_reverseConstraints;
+  private final MotionProfile.Constraints m_forwardConstraints;
+  private final MotionProfile.Constraints m_reverseConstraints;
 
   /**
    * Creates a new VelocityMotionProfile with the given constraints.
@@ -18,8 +18,8 @@ public class VelocityMotionProfile extends MotionProfile {
    * @param reverseConstraints The constraints to use for reverse motion (decelerating).
    */
   public VelocityMotionProfile(
-      MotionProfile.Constraints<?> forwardConstraints,
-      MotionProfile.Constraints<?> reverseConstraints) {
+      MotionProfile.Constraints forwardConstraints,
+      MotionProfile.Constraints reverseConstraints) {
     m_forwardConstraints = forwardConstraints;
     m_reverseConstraints = reverseConstraints;
   }

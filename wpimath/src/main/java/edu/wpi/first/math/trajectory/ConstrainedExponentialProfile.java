@@ -25,7 +25,7 @@ public class ConstrainedExponentialProfile {
     return new VelocityMotionProfile(forwardConstraints, reverseConstraints);
   }
 
-  public static class Constraints extends MotionProfile.Constraints<Curve> {
+  public static class Constraints extends MotionProfile.Constraints {
     private final TrapezoidProfile.Constraints m_trapezoid;
     private final ExponentialProfile.Constraints m_exponential;
 

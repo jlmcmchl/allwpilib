@@ -94,7 +94,7 @@ public class TrapezoidProfile {
   /**
    * Constraints for a trapezoidal motion profile.
    */
-  public static class Constraints extends MotionProfile.Constraints<Curve> {
+  public static class Constraints extends MotionProfile.Constraints {
     /** The maximum acceleration for the profile. */
     public final double maxAcceleration;
 

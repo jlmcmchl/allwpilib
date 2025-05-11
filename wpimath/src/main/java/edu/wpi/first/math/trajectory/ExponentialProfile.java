@@ -85,7 +85,7 @@ public class ExponentialProfile {
   /**
    * Constraints for an exponential profile.
    */
-  public static class Constraints extends MotionProfile.Constraints<Curve> {
+  public static class Constraints extends MotionProfile.Constraints {
     /** The maximum input value that can be applied to the system. */
     public final double maxInput;
 

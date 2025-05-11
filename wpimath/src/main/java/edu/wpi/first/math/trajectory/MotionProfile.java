@@ -18,6 +18,50 @@ import java.util.Objects;
  */
 public abstract class MotionProfile {
   /**
+   * Creates a FullStateMotionProfile with the same constraints for both forward and reverse motion.
+   *
+   * @param constraints The motion constraints to use for the profile.
+   * @return A FullStateMotionProfile with the specified constraints.
+   */
+  public static FullStateMotionProfile FullState(Constraints constraints) {
+    return new FullStateMotionProfile(constraints, constraints);
+  }
+
+  /**
+   * Creates a FullStateMotionProfile with different constraints for forward and reverse motion.
+   *
+   * @param forwardConstraints The motion constraints to use for forward motion.
+   * @param reverseConstraints The motion constraints to use for reverse motion.
+   * @return A FullStateMotionProfile with the specified constraints.
+   */
+  public static FullStateMotionProfile FullState(
+      Constraints forwardConstraints, Constraints reverseConstraints) {
+    return new FullStateMotionProfile(forwardConstraints, reverseConstraints);
+  }
+
+  /**
+   * Creates a VelocityMotionProfile with the same constraints for both forward and reverse motion.
+   *
+   * @param constraints The motion constraints to use for the profile.
+   * @return A VelocityMotionProfile with the specified constraints.
+   */
+  public static VelocityMotionProfile VelocityOnly(Constraints constraints) {
+    return new VelocityMotionProfile(constraints, constraints);
+  }
+
+  /**
+   * Creates a VelocityMotionProfile with different constraints for forward and reverse motion.
+   *
+   * @param forwardConstraints The motion constraints to use for forward motion.
+   * @param reverseConstraints The motion constraints to use for reverse motion.
+   * @return A VelocityMotionProfile with the specified constraints.
+   */
+  public static VelocityMotionProfile VelocityOnly(
+      Constraints forwardConstraints, Constraints reverseConstraints) {
+    return new VelocityMotionProfile(forwardConstraints, reverseConstraints);
+  }
+
+  /**
    * Represents a state in a motion profile with position and velocity components.
    */
   public static class State {
@@ -85,7 +129,7 @@ public abstract class MotionProfile {
    *
    * @param <T> The type of curve that can be created from these constraints.
    */
-  public abstract static class Constraints<T extends Curve> {
+  public abstract static class Constraints {
     /** The maximum allowable velocity for the motion profile. Default is unlimited. */
     public double maxVelocity = Double.MAX_VALUE;
 
@@ -96,7 +140,7 @@ public abstract class MotionProfile {
      * @param direction Whether the motion is in the negative (true) or positive (false) direction.
      * @return A curve that passes through the state in the specified direction.
      */
-    public abstract T throughState(State state, boolean direction);
+    public abstract Curve throughState(State state, boolean direction);
 
     /**
      * Sets the maximum velocity constraint.
@@ -104,7 +148,7 @@ public abstract class MotionProfile {
      * @param velocity The maximum velocity.
      * @return This object for method chaining.
      */
-    public Constraints<T> withMaxVelocity(double velocity) {
+    public Constraints withMaxVelocity(double velocity) {
       this.maxVelocity = velocity;
 
       return this;

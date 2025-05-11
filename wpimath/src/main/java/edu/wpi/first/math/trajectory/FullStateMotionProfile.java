@@ -11,8 +11,8 @@ package edu.wpi.first.math.trajectory;
  * cases where velocity limits are reached.
  */
 public class FullStateMotionProfile extends MotionProfile {
-  private final MotionProfile.Constraints<?> m_forwardConstraints;
-  private final MotionProfile.Constraints<?> m_reverseConstraints;
+  private final MotionProfile.Constraints m_forwardConstraints;
+  private final MotionProfile.Constraints m_reverseConstraints;
   private final double m_maxVelocity;
 
   /**
@@ -22,8 +22,8 @@ public class FullStateMotionProfile extends MotionProfile {
    * @param reverseConstraints The constraints to use for reverse motion.
    */
   public FullStateMotionProfile(
-      MotionProfile.Constraints<?> forwardConstraints,
-      MotionProfile.Constraints<?> reverseConstraints) {
+      MotionProfile.Constraints forwardConstraints,
+      MotionProfile.Constraints reverseConstraints) {
     m_forwardConstraints = forwardConstraints;
     m_reverseConstraints = reverseConstraints;
     m_maxVelocity = Math.min(m_forwardConstraints.maxVelocity, m_reverseConstraints.maxVelocity);
