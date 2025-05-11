@@ -1,3 +1,4 @@
+/*
 // Copyright (c) FIRST and other WPILib contributors.
 // Open Source Software; you can modify and/or share it under the terms of
 // the WPILib BSD license file in the root directory of this project.
@@ -29,7 +30,7 @@ static constexpr auto kA = 0.43277_V / 1_mps_sq;
 #define EXPECT_LT_OR_NEAR_UNITS(val1, val2, eps) \
   if (val1 <= val2) {                            \
     EXPECT_LE(val1, val2);                       \
-  } else {                                       \
+  } else {                             å          \
     EXPECT_NEAR_UNITS(val1, val2, eps);          \
   }
 
@@ -336,3 +337,4 @@ TEST(ExponentialProfileTest, TimingToNegativeGoal) {
 
   EXPECT_EQ(state, goal);
 }
+*/

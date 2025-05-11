@@ -4,480 +4,200 @@
 
 #pragma once
 
-#include "units/math.h"
-#include "units/time.h"
+#include "frc/trajectory/MotionProfile.h"
+#include "frc/trajectory/FullStateMotionProfile.h"
+#include "frc/trajectory/VelocityMotionProfile.h"
 
 namespace frc {
 
 /**
- * A Exponential-shaped velocity profile.
+ * A exponential curve-shaped velocity profile.
  *
- * While this class can be used for a profiled movement from start to finish,
- * the intended usage is to filter a reference's dynamics based on
- * ExponentialProfile velocity constraints. To compute the reference obeying
- * this constraint, do the following.
+ * While this class can be used for a profiled movement from start to finish, the intended usage
+ * is to filter a reference's dynamics based on state-space model dynamics. To compute the reference
+ * obeying this constraint, do the following .
  *
  * Initialization:
+ *
  * @code{.cpp}
- * ExponentialProfile::Constraints constraints{kMaxV, kV, kA};
- * State previousProfiledReference = {initialReference, 0_mps};
+ * ExponentialProfile::Constraints constraints =
+ *   ExponentialProfile::Constraints::FromCharacteristics(kMaxV, kV, kA);
+ * MotionProfile::State previousProfiledReference(initialReference, 0.0);
+ * ExponentialProfile profile = constraints.asMotionProfile();
  * @endcode
  *
  * Run on update:
+ *
  * @code{.cpp}
- * previousProfiledReference = profile.Calculate(timeSincePreviousUpdate,
- * previousProfiledReference, unprofiledReference);
+ * previousProfiledReference =
+ *     profile.calculate(timeSincePreviousUpdate, previousProfiledReference, unprofiledReference);
  * @endcode
  *
- * where `unprofiledReference` is free to change between calls. Note that when
- * the unprofiled reference is within the constraints, `Calculate()` returns the
- * unprofiled reference unchanged.
+ * where `unprofiledReference` is free to change between calls. Note that when the unprofiled
+ * reference is within the constraints, `calculate()` returns the unprofiled reference unchanged.
  *
- * Otherwise, a timer can be started to provide monotonic values for
- * `Calculate()` and to determine when the profile has completed via
- * `IsFinished()`.
+ * Otherwise, a timer can be started to provide monotonic values for `calculate()` and to
+ * determine when the profile has completed via `timeRemaining()`.
  */
-template <class Distance, class Input>
+template <class Distance>
 class ExponentialProfile {
  public:
-  using Distance_t = units::unit_t<Distance>;
-  using Velocity =
-      units::compound_unit<Distance, units::inverse<units::seconds>>;
-  using Velocity_t = units::unit_t<Velocity>;
-  using Acceleration =
-      units::compound_unit<Velocity, units::inverse<units::seconds>>;
-  using Input_t = units::unit_t<Input>;
-  using A_t = units::unit_t<units::inverse<units::seconds>>;
-  using B_t =
-      units::unit_t<units::compound_unit<Acceleration, units::inverse<Input>>>;
-  using KV = units::compound_unit<Input, units::inverse<Velocity>>;
-  using kV_t = units::unit_t<KV>;
-  using KA = units::compound_unit<Input, units::inverse<Acceleration>>;
-  using kA_t = units::unit_t<KA>;
 
-  /**
-   * Profile timing.
+ /**
+   * Constraints for an exponential profile.
    */
-  class ProfileTiming {
+  class Constraints : public MotionProfile<Distance>::Constraints<MotionProfile<Distance>::Curve> {
    public:
-    /// Profile inflection time.
-    units::second_t inflectionTime;
+    /** The maximum input value that can be applied to the system. */
+    double maxInput;
 
-    /// Total profile time.
-    units::second_t totalTime;
+    /** The state matrix coefficient for the system dynamics. */
+    double A;
+    
+    /** The input matrix coefficient for the system dynamics. */
+    double B;
 
     /**
-     * Decides if the profile is finished by time t.
+     * Creates constraints from the physical system characteristics.
      *
-     * @param t The time since the beginning of the profile.
-     * @return if the profile is finished at time t.
+     * @param maxInput The maximum input value.
+     * @param kV The velocity gain (voltage per velocity).
+     * @param kA The acceleration gain (voltage per acceleration).
+     * @return A new Constraints object.
      */
-    constexpr bool IsFinished(const units::second_t& t) const {
-      return t >= totalTime;
+    static Constraints FromCharacteristics(double maxInput, double kV, double kA) {
+      return Constraints(maxInput, -kV / kA, 1.0 / kA);
     }
+
+    /**
+     * Creates constraints from state-space model parameters.
+     *
+     * @param maxInput The maximum input value.
+     * @param A The state matrix coefficient for the system dynamics.
+     * @param B The input matrix coefficient for the system dynamics.
+     * @return A new Constraints object.
+     */
+    static Constraints FromStateSpace(double maxInput, double A, double B) {
+      return Constraints(maxInput, A, B);
+    }
+
+    /**
+     * Creates constraints from boundary conditions of the system.
+     *
+     * @param steadyStateVelocity The velocity at steady state with a unit input.
+     * @param standstillAcceleration The acceleration at standstill with a unit input.
+     * @return A new Constraints object.
+     */
+    static Constraints FromBoundaryConditions(double steadyStateVelocity,
+                                            double standstillAcceleration) {
+      return FromCharacteristics(1, 1 / steadyStateVelocity, 1 / standstillAcceleration);
+    }
+
+    /**
+     * Creates a curve passing through the given state in the specified direction.
+     *
+     * @param state The state that the curve should pass through.
+     * @param direction Whether to move in the positive (false) or negative (true) direction.
+     * @return A new curve passing through the given state.
+     */
+    Curve ThroughState(const MotionProfile<Distance>::State& state, bool direction) const override;
+
+    /**
+     * Calculates the maximum achievable velocity for a given acceleration.
+     *
+     * @param acceleration The acceleration value to use.
+     * @return The maximum achievable velocity.
+     */
+    double MaxAchievableVelocity(double acceleration) const {
+      return (acceleration - B * maxInput) / A;
+    }
+
+    /**
+     * Sets the maximum velocity constraint.
+     *
+     * @param velocity The maximum velocity.
+     * @return This object for method chaining.
+     */
+    Constraints& WithMaxVelocity(double velocity) override {
+      MotionProfile<Distance>::Constraints<MotionProfile<Distance>::Curve>::WithMaxVelocity(velocity);
+      return *this;
+    }
+
+   private:
+    /**
+     * Creates a new set of exponential profile constraints.
+     *
+     * @param maxInput The maximum input value that can be applied.
+     * @param A The state matrix coefficient for the system dynamics.
+     * @param B The input matrix coefficient for the system dynamics.
+     */
+    Constraints(double maxInput, double A, double B)
+        : maxInput(maxInput), A(A), B(B) {}
   };
 
   /**
-   * Profile constraints.
+   * A curve segment of an exponential profile.
    */
-  class Constraints {
+  class Curve : public MotionProfile<Distance>::Curve {
    public:
     /**
-     * Constructs constraints for an ExponentialProfile.
+     * Creates a new exponential curve.
      *
-     * @param maxInput maximum unsigned input voltage
-     * @param A The State-Space 1x1 system matrix.
-     * @param B The State-Space 1x1 input matrix.
+     * @param constraints The constraints for the curve.
+     * @param state The initial state for the curve.
+     * @param input The input value to apply.
      */
-    constexpr Constraints(Input_t maxInput, A_t A, B_t B)
-        : maxInput{maxInput}, A{A}, B{B} {}
+    Curve(const Constraints& constraints, const MotionProfile<Distance>::State& state,
+          double input);
 
-    /**
-     * Constructs constraints for an ExponentialProfile from characteristics.
-     *
-     * @param maxInput maximum unsigned input voltage
-     * @param kV The velocity gain.
-     * @param kA The acceleration gain.
-     */
-    constexpr Constraints(Input_t maxInput, kV_t kV, kA_t kA)
-        : maxInput{maxInput}, A{-kV / kA}, B{1 / kA} {}
+    double ComputeDistanceFromVelocity(double velocity) const override;
+    double TimeToState(const MotionProfile<Distance>::State& goal) const override;
+    double ComputeVelocityFromTime(double t) const override;
+    double ComputeDistanceFromTime(double t) const override;
+    double IntersectionVelocity(const MotionProfile<Distance>::Curve& other) const override;
 
-    /**
-     * Computes the max achievable velocity for an Exponential Profile.
-     *
-     * @return The steady-state velocity achieved by this profile.
-     */
-    constexpr Velocity_t MaxVelocity() const { return -maxInput * B / A; }
-
-    /// Maximum unsigned input voltage.
-    Input_t maxInput{0};
-
-    /// The State-Space 1x1 system matrix.
-    A_t A{0};
-
-    /// The State-Space 1x1 input matrix.
-    B_t B{0};
-  };
-
-  /** Profile state. */
-  class State {
-   public:
-    /// The position at this state.
-    Distance_t position{0};
-
-    /// The velocity at this state.
-    Velocity_t velocity{0};
-
-    constexpr bool operator==(const State&) const = default;
+   private:
+    const Constraints& m_constraints;
+    const MotionProfile<Distance>::State m_initialState;
+    const double m_input;
   };
 
   /**
-   * Constructs a ExponentialProfile.
+   * Creates a FullStateMotionProfile with the same constraints for both forward and reverse motion.
    *
-   * @param constraints The constraints on the profile, like maximum input.
+   * @param constraints The motion constraints to use for the profile.
+   * @return A FullStateMotionProfile with the specified constraints.
    */
-  constexpr explicit ExponentialProfile(Constraints constraints)
-      : m_constraints(constraints) {}
-
-  constexpr ExponentialProfile(const ExponentialProfile&) = default;
-  constexpr ExponentialProfile& operator=(const ExponentialProfile&) = default;
-  constexpr ExponentialProfile(ExponentialProfile&&) = default;
-  constexpr ExponentialProfile& operator=(ExponentialProfile&&) = default;
+  static FullStateMotionProfile<Distance> FullState(const Constraints& constraints);
 
   /**
-   * Calculates the position and velocity for the profile at a time t where the
-   * current state is at time t = 0.
+   * Creates a FullStateMotionProfile with different constraints for forward and reverse motion.
    *
-   * @param t How long to advance from the current state toward the desired
-   *     state.
-   * @param current The current state.
-   * @param goal The desired state when the profile is complete.
-   * @return The position and velocity of the profile at time t.
+   * @param forwardConstraints The motion constraints to use for forward motion.
+   * @param reverseConstraints The motion constraints to use for reverse motion.
+   * @return A FullStateMotionProfile with the specified constraints.
    */
-  constexpr State Calculate(const units::second_t& t, const State& current,
-                            const State& goal) const {
-    auto direction = ShouldFlipInput(current, goal) ? -1 : 1;
-    auto u = direction * m_constraints.maxInput;
-
-    auto inflectionPoint = CalculateInflectionPoint(current, goal, u);
-    auto timing = CalculateProfileTiming(current, inflectionPoint, goal, u);
-
-    if (t < 0_s) {
-      return current;
-    } else if (t < timing.inflectionTime) {
-      return {ComputeDistanceFromTime(t, u, current),
-              ComputeVelocityFromTime(t, u, current)};
-    } else if (t < timing.totalTime) {
-      return {ComputeDistanceFromTime(t - timing.totalTime, -u, goal),
-              ComputeVelocityFromTime(t - timing.totalTime, -u, goal)};
-    } else {
-      return goal;
-    }
-  }
+  static FullStateMotionProfile<Distance> FullState(const Constraints& forwardConstraints,
+                                        const Constraints& reverseConstraints);
 
   /**
-   * Calculates the point after which the fastest way to reach the goal state is
-   * to apply input in the opposite direction.
+   * Creates a VelocityMotionProfile with the same constraints for both forward and reverse motion.
    *
-   * @param current The current state.
-   * @param goal The desired state when the profile is complete.
-   * @return The position and velocity of the profile at the inflection point.
+   * @param constraints The motion constraints to use for the profile.
+   * @return A VelocityMotionProfile with the specified constraints.
    */
-  constexpr State CalculateInflectionPoint(const State& current,
-                                           const State& goal) const {
-    auto direction = ShouldFlipInput(current, goal) ? -1 : 1;
-    auto u = direction * m_constraints.maxInput;
-
-    return CalculateInflectionPoint(current, goal, u);
-  }
+  static VelocityMotionProfile<Distance> VelocityOnly(const Constraints& constraints);
 
   /**
-   * Calculates the time it will take for this profile to reach the goal state.
+   * Creates a VelocityMotionProfile with different constraints for forward and reverse motion.
    *
-   * @param current The current state.
-   * @param goal The desired state when the profile is complete.
-   * @return The total duration of this profile.
+   * @param forwardConstraints The motion constraints to use for forward motion.
+   * @param reverseConstraints The motion constraints to use for reverse motion.
+   * @return A VelocityMotionProfile with the specified constraints.
    */
-  constexpr units::second_t TimeLeftUntil(const State& current,
-                                          const State& goal) const {
-    auto timing = CalculateProfileTiming(current, goal);
+  static VelocityMotionProfile<Distance> VelocityOnly(const Constraints& forwardConstraints,
+                                          const Constraints& reverseConstraints);
 
-    return timing.totalTime;
-  }
-
-  /**
-   * Calculates the time it will take for this profile to reach the inflection
-   * point, and the time it will take for this profile to reach the goal state.
-   *
-   * @param current The current state.
-   * @param goal The desired state when the profile is complete.
-   * @return The timing information for this profile.
-   */
-  constexpr ProfileTiming CalculateProfileTiming(const State& current,
-                                                 const State& goal) const {
-    auto direction = ShouldFlipInput(current, goal) ? -1 : 1;
-    auto u = direction * m_constraints.maxInput;
-
-    auto inflectionPoint = CalculateInflectionPoint(current, goal, u);
-    return CalculateProfileTiming(current, inflectionPoint, goal, u);
-  }
-
- private:
-  /**
-   * Calculates the point after which the fastest way to reach the goal state is
-   * to apply input in the opposite direction.
-   *
-   * @param current The current state.
-   * @param goal The desired state when the profile is complete.
-   * @param input The signed input applied to this profile from the current
-   *     state.
-   * @return The position and velocity of the profile at the inflection point.
-   */
-  constexpr State CalculateInflectionPoint(const State& current,
-                                           const State& goal,
-                                           const Input_t& input) const {
-    auto u = input;
-
-    if (current == goal) {
-      return current;
-    }
-
-    auto inflectionVelocity = SolveForInflectionVelocity(u, current, goal);
-    auto inflectionPosition =
-        ComputeDistanceFromVelocity(inflectionVelocity, -u, goal);
-
-    return {inflectionPosition, inflectionVelocity};
-  }
-
-  /**
-   * Calculates the time it will take for this profile to reach the inflection
-   * point, and the time it will take for this profile to reach the goal state.
-   *
-   * @param current The current state.
-   * @param inflectionPoint The inflection point of this profile.
-   * @param goal The desired state when the profile is complete.
-   * @param input The signed input applied to this profile from the current
-   *     state.
-   * @return The timing information for this profile.
-   */
-  constexpr ProfileTiming CalculateProfileTiming(const State& current,
-                                                 const State& inflectionPoint,
-                                                 const State& goal,
-                                                 const Input_t& input) const {
-    auto u = input;
-    auto u_dir = units::math::abs(u) / u;
-
-    units::second_t inflectionT_forward;
-
-    // We need to handle 5 cases here:
-    //
-    // - Approaching -maxVelocity from below
-    // - Approaching -maxVelocity from above
-    // - Approaching maxVelocity from below
-    // - Approaching maxVelocity from above
-    // - At +-maxVelocity
-    //
-    // For cases 1 and 3, we want to subtract epsilon from the inflection point
-    // velocity For cases 2 and 4, we want to add epsilon to the inflection
-    // point velocity. For case 5, we have reached inflection point velocity.
-    auto epsilon = Velocity_t(1e-9);
-    if (units::math::abs(u_dir * m_constraints.MaxVelocity() -
-                         inflectionPoint.velocity) < epsilon) {
-      auto solvableV = inflectionPoint.velocity;
-      units::second_t t_to_solvable_v;
-      Distance_t x_at_solvable_v;
-      if (units::math::abs(current.velocity - inflectionPoint.velocity) <
-          epsilon) {
-        t_to_solvable_v = 0_s;
-        x_at_solvable_v = current.position;
-      } else {
-        if (units::math::abs(current.velocity) > m_constraints.MaxVelocity()) {
-          solvableV += u_dir * epsilon;
-        } else {
-          solvableV -= u_dir * epsilon;
-        }
-
-        t_to_solvable_v =
-            ComputeTimeFromVelocity(solvableV, u, current.velocity);
-        x_at_solvable_v = ComputeDistanceFromVelocity(solvableV, u, current);
-      }
-
-      inflectionT_forward =
-          t_to_solvable_v + u_dir *
-                                (inflectionPoint.position - x_at_solvable_v) /
-                                m_constraints.MaxVelocity();
-    } else {
-      inflectionT_forward = ComputeTimeFromVelocity(inflectionPoint.velocity, u,
-                                                    current.velocity);
-    }
-
-    auto inflectionT_backward =
-        ComputeTimeFromVelocity(inflectionPoint.velocity, -u, goal.velocity);
-
-    return {inflectionT_forward, inflectionT_forward - inflectionT_backward};
-  }
-
-  /**
-   * Calculates the position reached after t seconds when applying an input from
-   * the initial state.
-   *
-   * @param t The time since the initial state.
-   * @param input The signed input applied to this profile from the initial
-   *     state.
-   * @param initial The initial state.
-   * @return The distance travelled by this profile.
-   */
-  constexpr Distance_t ComputeDistanceFromTime(const units::second_t& time,
-                                               const Input_t& input,
-                                               const State& initial) const {
-    auto A = m_constraints.A;
-    auto B = m_constraints.B;
-    auto u = input;
-
-    return initial.position +
-           (-B * u * time +
-            (initial.velocity + B * u / A) * (units::math::exp(A * time) - 1)) /
-               A;
-  }
-
-  /**
-   * Calculates the velocity reached after t seconds when applying an input from
-   * the initial state.
-   *
-   * @param t The time since the initial state.
-   * @param input The signed input applied to this profile from the initial
-   *     state.
-   * @param initial The initial state.
-   * @return The distance travelled by this profile.
-   */
-  constexpr Velocity_t ComputeVelocityFromTime(const units::second_t& time,
-                                               const Input_t& input,
-                                               const State& initial) const {
-    auto A = m_constraints.A;
-    auto B = m_constraints.B;
-    auto u = input;
-
-    return (initial.velocity + B * u / A) * units::math::exp(A * time) -
-           B * u / A;
-  }
-
-  /**
-   * Calculates the time required to reach a specified velocity given the
-   * initial velocity.
-   *
-   * @param velocity The goal velocity.
-   * @param input The signed input applied to this profile from the initial
-   *     state.
-   * @param initial The initial velocity.
-   * @return The time required to reach the goal velocity.
-   */
-  constexpr units::second_t ComputeTimeFromVelocity(
-      const Velocity_t& velocity, const Input_t& input,
-      const Velocity_t& initial) const {
-    auto A = m_constraints.A;
-    auto B = m_constraints.B;
-    auto u = input;
-
-    return units::math::log((A * velocity + B * u) / (A * initial + B * u)) / A;
-  }
-
-  /**
-   * Calculates the distance reached at the same time as the given velocity when
-   * applying the given input from the initial state.
-   *
-   * @param velocity The velocity reached by this profile
-   * @param input The signed input applied to this profile from the initial
-   *     state.
-   * @param initial The initial state.
-   * @return The distance reached when the given velocity is reached.
-   */
-  constexpr Distance_t ComputeDistanceFromVelocity(const Velocity_t& velocity,
-                                                   const Input_t& input,
-                                                   const State& initial) const {
-    auto A = m_constraints.A;
-    auto B = m_constraints.B;
-    auto u = input;
-
-    return initial.position + (velocity - initial.velocity) / A -
-           B * u / (A * A) *
-               units::math::log((A * velocity + B * u) /
-                                (A * initial.velocity + B * u));
-  }
-
-  /**
-   * Calculates the velocity at which input should be reversed in order to reach
-   * the goal state from the current state.
-   *
-   * @param input The signed input applied to this profile from the current
-   *     state.
-   * @param current The current state.
-   * @param goal The goal state.
-   * @return The inflection velocity.
-   */
-  constexpr Velocity_t SolveForInflectionVelocity(const Input_t& input,
-                                                  const State& current,
-                                                  const State& goal) const {
-    auto A = m_constraints.A;
-    auto B = m_constraints.B;
-    auto u = input;
-
-    auto u_dir = u / units::math::abs(u);
-
-    auto position_delta = goal.position - current.position;
-    auto velocity_delta = goal.velocity - current.velocity;
-
-    auto scalar = (A * current.velocity + B * u) * (A * goal.velocity - B * u);
-    auto power = -A / B / u * (A * position_delta - velocity_delta);
-
-    auto a = -A * A;
-    auto c = B * B * u * u + scalar * units::math::exp(power);
-
-    if (-1e-9 < c.value() && c.value() < 0) {
-      // numeric instability - the heuristic gets it right but c is around
-      // -1e-13
-      return Velocity_t(0);
-    }
-
-    return u_dir * units::math::sqrt(-c / a);
-  }
-
-  /**
-   * Returns true if the profile should be inverted.
-   *
-   * The profile is inverted if we should first apply negative input in order to
-   * reach the goal state.
-   *
-   * @param current The initial state (usually the current state).
-   * @param goal The desired state when the profile is complete.
-   */
-  constexpr bool ShouldFlipInput(const State& current,
-                                 const State& goal) const {
-    auto u = m_constraints.maxInput;
-
-    auto v0 = current.velocity;
-    auto xf = goal.position;
-    auto vf = goal.velocity;
-
-    auto x_forward = ComputeDistanceFromVelocity(vf, u, current);
-    auto x_reverse = ComputeDistanceFromVelocity(vf, -u, current);
-
-    if (v0 >= m_constraints.MaxVelocity()) {
-      return xf < x_reverse;
-    }
-
-    if (v0 <= -m_constraints.MaxVelocity()) {
-      return xf < x_forward;
-    }
-
-    auto a = v0 >= Velocity_t(0);
-    auto b = vf >= Velocity_t(0);
-    auto c = xf >= x_forward;
-    auto d = xf >= x_reverse;
-
-    return (a && !d) || (b && !c) || (!c && !d);
-  }
-
-  Constraints m_constraints;
 };
 
-}  // namespace frc
+}  // namespace frc 
