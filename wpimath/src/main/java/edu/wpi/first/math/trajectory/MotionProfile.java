@@ -214,8 +214,8 @@ public abstract class MotionProfile {
    *
    * @return A motion profile follower for this profile.
    */
-  public MotionProfileFollower<MotionProfile> follower() {
-    return new MotionProfileFollower<MotionProfile>(this);
+  public MotionProfileFollower follower() {
+    return new MotionProfileFollower(this);
   }
 
   /**
@@ -223,7 +223,7 @@ public abstract class MotionProfile {
    *
    * @return A rotation motion profile follower for this profile.
    */
-  public RotationMotionProfileFollower<MotionProfile> rotationFollower() {
-    return new RotationMotionProfileFollower<MotionProfile>(this);
+  public RotationMotionProfileFollower rotationFollower() {
+    return new RotationMotionProfileFollower(this);
   }
 }

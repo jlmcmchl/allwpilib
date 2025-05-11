@@ -9,10 +9,9 @@ import edu.wpi.first.math.trajectory.MotionProfile.State;
  * to update the profile state based on elapsed time. It's useful for implementing controllers
  * that need to follow a motion profile trajectory.
  *
- * @param <P> The type of motion profile to follow.
  */
-public class MotionProfileFollower<P extends MotionProfile> {
-  private final P profile;
+public class MotionProfileFollower {
+  private final MotionProfile profile;
   private final State currentState = new State();
   private final State goalState = new State();
 
@@ -21,7 +20,7 @@ public class MotionProfileFollower<P extends MotionProfile> {
    *
    * @param profile The motion profile to follow.
    */
-  public MotionProfileFollower(P profile) {
+  public MotionProfileFollower(MotionProfile profile) {
     this.profile = profile;
   }
 

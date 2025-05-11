@@ -10,10 +10,9 @@ import edu.wpi.first.math.trajectory.MotionProfile.State;
  * to handle the unique characteristics of rotational motion, including proper handling
  * of angle wrapping and shortest-path determination between two angles.
  *
- * @param <P> The type of motion profile to follow.
  */
-public class RotationMotionProfileFollower<P extends MotionProfile> {
-  private final P profile;
+public class RotationMotionProfileFollower {
+  private final MotionProfile profile;
   private final State currentState = new State();
   private final State goalState = new State();
 
@@ -22,7 +21,7 @@ public class RotationMotionProfileFollower<P extends MotionProfile> {
    *
    * @param profile The motion profile to follow.
    */
-  public RotationMotionProfileFollower(P profile) {
+  public RotationMotionProfileFollower(MotionProfile profile) {
     this.profile = profile;
   }
 
