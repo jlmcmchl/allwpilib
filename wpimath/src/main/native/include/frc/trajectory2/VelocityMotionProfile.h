@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "frc/trajectory/MotionProfile.h"
+#include "frc/trajectory2/MotionProfile.h"
 
 namespace frc {
 

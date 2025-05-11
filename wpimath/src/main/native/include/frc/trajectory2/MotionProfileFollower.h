@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "frc/trajectory/MotionProfile.h"
+#include "frc/trajectory2/MotionProfile.h"
 
 namespace frc {
 
@@ -17,23 +17,25 @@ namespace frc {
  *
  * @tparam P The type of motion profile to follow.
  */
-template <typename P>
+template <class Distance>
 class MotionProfileFollower {
  public:
+  using State = typename MotionProfile<Distance>::State;
+
   /**
    * Creates a new MotionProfileFollower for the specified profile.
    *
    * @param profile The motion profile to follow.
    */
-  explicit MotionProfileFollower(P profile) : m_profile(profile) {}
+  MotionProfileFollower(MotionProfile<Distance> profile) : m_profile(profile) {}
 
   /**
    * Gets the current state of the follower.
    *
    * @return A copy of the current position and velocity state.
    */
-  MotionProfile::State GetCurrentState() const {
-    return MotionProfile::State(m_currentState.position, m_currentState.velocity);
+  State GetCurrentState() const {
+    return State(m_currentState.position, m_currentState.velocity);
   }
 
   /**
@@ -41,8 +43,8 @@ class MotionProfileFollower {
    *
    * @return A copy of the goal position and velocity state.
    */
-  MotionProfile::State GetGoalState() const {
-    return MotionProfile::State(m_goalState.position, m_goalState.velocity);
+  State GetGoalState() const {
+    return State(m_goalState.position, m_goalState.velocity);
   }
 
   /**
@@ -50,7 +52,7 @@ class MotionProfileFollower {
    *
    * @param current The new current state.
    */
-  void SetCurrentState(const MotionProfile::State& current) {
+  void SetCurrentState(const State& current) {
     m_currentState.position = current.position;
     m_currentState.velocity = current.velocity;
   }
@@ -60,7 +62,7 @@ class MotionProfileFollower {
    *
    * @param goal The new goal state.
    */
-  void SetGoalState(const MotionProfile::State& goal) {
+  void SetGoalState(const State& goal) {
     m_goalState.position = goal.position;
     m_goalState.velocity = goal.velocity;
   }
@@ -74,7 +76,7 @@ class MotionProfileFollower {
    * @param dt The elapsed time since the last update, in seconds.
    * @return The new state after the update.
    */
-  MotionProfile::State Update(double dt) {
+  State Update(double dt) {
     auto state = m_profile.Calculate(dt, m_currentState, m_goalState);
     m_currentState.position = state.position;
     m_currentState.velocity = state.velocity;
@@ -91,9 +93,9 @@ class MotionProfileFollower {
   }
 
  private:
-  P m_profile;
-  MotionProfile::State m_currentState;
-  MotionProfile::State m_goalState;
+  MotionProfile<Distance> m_profile;
+  State m_currentState;
+  State m_goalState;
 };
 
 }  // namespace frc 

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "MotionProfile.h"
+#include "frc/trajectory2/MotionProfile.h"
 
 namespace frc {
 
@@ -22,7 +22,7 @@ template <class Distance>
 class FullStateMotionProfile : public MotionProfile<Distance> {
  public:
   using State = typename MotionProfile<Distance>::State;
-  using Constraints = typename MotionProfile<Distance>::template Constraints<typename MotionProfile<Distance>::Curve>;
+  using Constraints = typename MotionProfile<Distance>::Constraints;
   /**
    * Creates a new FullStateMotionProfile with the given constraints.
    *

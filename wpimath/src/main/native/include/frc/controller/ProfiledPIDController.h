@@ -40,7 +40,7 @@ class ProfiledPIDController
   using Acceleration =
       units::compound_unit<Velocity, units::inverse<units::seconds>>;
   using Acceleration_t = units::unit_t<Acceleration>;
-  using State = typename MotionProfile<Distance>::State;
+  using State = typename TrapezoidProfile<Distance>::State;
   using Constraints = typename TrapezoidProfile<Distance>::Constraints;
 
   /**
@@ -59,8 +59,8 @@ class ProfiledPIDController
                                   Constraints constraints,
                                   units::second_t period = 20_ms)
       : m_controller{Kp, Ki, Kd, period},
-        m_constraints{constraints} {
-    m_profile = TrapezoidProfile<Distance>::FullState(m_constraints);
+        m_constraints{constraints},
+        m_profile{m_constraints} {
     if (!std::is_constant_evaluated()) {
       int instances = detail::IncrementAndGetProfiledPIDControllerInstances();
       wpi::math::MathSharedStore::ReportUsage(
@@ -222,7 +222,7 @@ class ProfiledPIDController
    */
   constexpr void SetConstraints(Constraints constraints) {
     m_constraints = constraints;
-    m_profile = TrapezoidProfile<Distance>::FullState(m_constraints);
+    m_profile = TrapezoidProfile<Distance>(m_constraints);
   }
 
   /**
@@ -448,10 +448,10 @@ class ProfiledPIDController
   Distance_t m_minimumInput{0};
   Distance_t m_maximumInput{0};
 
-  Constraints m_constraints;
-  MotionProfile<Distance> m_profile;
-  State m_goal;
-  State m_setpoint;
+  typename frc::TrapezoidProfile<Distance>::Constraints m_constraints;
+  TrapezoidProfile<Distance> m_profile;
+  typename frc::TrapezoidProfile<Distance>::State m_goal;
+  typename frc::TrapezoidProfile<Distance>::State m_setpoint;
 };
 
 }  // namespace frc
