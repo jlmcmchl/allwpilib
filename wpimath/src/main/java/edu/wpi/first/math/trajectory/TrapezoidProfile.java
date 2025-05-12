@@ -223,11 +223,14 @@ public class TrapezoidProfile {
       if (other instanceof TrapezoidProfile.Curve) {
         var otherCurve = (TrapezoidProfile.Curve) other;
         double positionDifference = otherCurve.m_initialState.position - m_initialState.position;
-        double velocitySum =
-            m_initialState.velocity * m_initialState.velocity
-                + otherCurve.m_initialState.velocity * otherCurve.m_initialState.velocity;
+        double accelerationSum = m_acceleration + otherCurve.m_acceleration;
+        double accelerationProduct = 2 * m_acceleration * otherCurve.m_acceleration;
 
-        double sqrtTerm = Math.sqrt(m_acceleration * positionDifference + velocitySum / 2);
+        double velocitySum =
+            otherCurve.m_acceleration * m_initialState.velocity * m_initialState.velocity
+                + m_acceleration * otherCurve.m_initialState.velocity * otherCurve.m_initialState.velocity;
+
+        double sqrtTerm = Math.sqrt((accelerationProduct * positionDifference + velocitySum) / accelerationSum);
 
         // Calculate the sign based on the acceleration direction
         double sign = Math.signum(m_acceleration);
