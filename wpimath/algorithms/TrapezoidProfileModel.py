@@ -3,8 +3,8 @@ from sympy.logic.boolalg import *
 
 init_printing()
 
-U, A, B, t, x0, xf, v0, vf, c1, c2, v, V, kV, kA, vmax, a = symbols(
-    "U, A, B t, x0, xf, v0, vf, C1, C2, v, V, kV, kA, vmax, a"
+U, A, B, t, x0, xf, v0, vf, c1, c2, v, V, kV, kA, vmax, a, a1, a2 = symbols(
+    "U, A, B t, x0, xf, v0, vf, C1, C2, v, V, kV, kA, vmax, a, a1, a2"
 )
 
 x = symbols("x", cls=Function)
@@ -45,7 +45,7 @@ t2_eqn = solve(Eq(dx2, v), t)[0]
 # x2 in phase space (input v, output x)
 x2_ps = x2.subs(t, t2_eqn)
 
-v_equality = Eq(x1_ps, x2_ps)
+v_equality = Eq(x1_ps.subs(a, a1), x2_ps.subs(a, a2))
 v_soln = solve(v_equality, v)
 
 
