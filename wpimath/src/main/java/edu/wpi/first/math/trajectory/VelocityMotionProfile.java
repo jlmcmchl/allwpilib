@@ -1,8 +1,12 @@
+// Copyright (c) FIRST and other WPILib contributors.
+// Open Source Software; you can modify and/or share it under the terms of
+// the WPILib BSD license file in the root directory of this project.
+
 package edu.wpi.first.math.trajectory;
 
 /**
  * A motion profile that focuses only on velocity constraints without full position control.
- * 
+ *
  * <p>Unlike a full-state motion profile, this profile only attempts to reach the goal velocity
  * without ensuring the exact goal position is reached. It's useful for applications where
  * precise position control is less important than velocity tracking.

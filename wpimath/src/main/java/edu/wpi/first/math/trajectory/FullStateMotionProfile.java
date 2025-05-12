@@ -1,12 +1,16 @@
+// Copyright (c) FIRST and other WPILib contributors.
+// Open Source Software; you can modify and/or share it under the terms of
+// the WPILib BSD license file in the root directory of this project.
+
 package edu.wpi.first.math.trajectory;
 
 /**
  * A motion profile that controls both position and velocity states, with full state feedback.
- * 
+ *
  * <p>This class generates motion profiles that respect both position and velocity constraints,
  * creating smooth transitions between states. It can use different constraints for forward and
  * reverse motion, allowing for asymmetric acceleration and deceleration profiles.
- * 
+ *
  * <p>The profile automatically determines the optimal direction of travel and handles
  * cases where velocity limits are reached.
  */

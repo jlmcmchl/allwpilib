@@ -1,14 +1,18 @@
+// Copyright (c) FIRST and other WPILib contributors.
+// Open Source Software; you can modify and/or share it under the terms of
+// the WPILib BSD license file in the root directory of this project.
+
 package edu.wpi.first.math.trajectory;
 
 import java.util.Objects;
 
 /**
  * Abstract base class for motion profiles that define position and velocity trajectories over time.
- * 
+ *
  * <p>A motion profile generates a trajectory that smoothly transitions from one state to another
  * while respecting constraints such as maximum velocity and acceleration. This class provides
  * the foundation for various profile implementations like trapezoidal and exponential profiles.
- * 
+ *
  * <p>Motion profiles are useful for:
  * <ul>
  *   <li>Generating smooth motions between setpoints</li>
@@ -157,12 +161,11 @@ public abstract class MotionProfile {
 
   /**
    * Abstract base class for curve segments in motion profiles.
-   * 
+   *
    * <p>A curve represents a mathematical function defining motion between states,
    * with position and velocity characterized as functions of time.
    */
   public abstract static class Curve {
-
     /**
      * Computes the distance required to reach the specified velocity.
      *

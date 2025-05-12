@@ -37,7 +37,6 @@ import edu.wpi.first.math.trajectory.MotionProfile.State;
  * determine when the profile has completed via `timeRemaining()`.
  */
 public class ExponentialProfile {
-
   /**
    * Creates a FullStateMotionProfile with the same constraints for both forward and reverse motion.
    *
@@ -91,7 +90,7 @@ public class ExponentialProfile {
 
     /** The state matrix coefficient for the system dynamics. */
     public final double A;
-    
+
     /** The input matrix coefficient for the system dynamics. */
     public final double B;
 
