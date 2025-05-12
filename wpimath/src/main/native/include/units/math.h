@@ -729,6 +729,19 @@ constexpr UnitType abs(const UnitType x) noexcept {
 
 /**
  * @ingroup UnitMath
+ * @brief Compute if a value is NaN
+ * @details Returns true if x is NaN, false otherwise.
+ * @param[in] x Value to check if it is NaN.
+ * @returns True if x is NaN, false otherwise.
+ */
+template <class UnitType,
+          class = std::enable_if_t<traits::is_unit_t<UnitType>::value>>
+constexpr bool is_nan(const UnitType x) noexcept {
+  return gcem::internal::is_nan(x());
+}
+
+/**
+ * @ingroup UnitMath
  * @brief Multiply-add
  * @details Returns x*y+z. The function computes the result without losing
  *          precision in any intermediate result. The resulting unit type is a

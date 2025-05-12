@@ -9,11 +9,13 @@
 namespace frc {
 
 /**
- * A follower for motion profiles that tracks the progress of a profile over time.
+ * A follower for motion profiles that tracks the progress of a profile over
+ * time.
  *
- * This class maintains the current and goal states of a motion profile and provides methods
- * to update the profile state based on elapsed time. It's useful for implementing controllers
- * that need to follow a motion profile trajectory.
+ * This class maintains the current and goal states of a motion profile and
+ * provides methods to update the profile state based on elapsed time. It's
+ * useful for implementing controllers that need to follow a motion profile
+ * trajectory.
  *
  * @tparam P The type of motion profile to follow.
  */
@@ -27,7 +29,8 @@ class MotionProfileFollower {
    *
    * @param profile The motion profile to follow.
    */
-  MotionProfileFollower(MotionProfile<Distance> profile) : m_profile(profile) {}
+  explicit MotionProfileFollower(MotionProfile<Distance>& profile)
+      : m_profile(profile) {}
 
   /**
    * Gets the current state of the follower.
@@ -70,8 +73,8 @@ class MotionProfileFollower {
   /**
    * Updates the follower's state based on the elapsed time.
    *
-   * This method advances the motion profile by the specified time step and updates
-   * the internal current state.
+   * This method advances the motion profile by the specified time step and
+   * updates the internal current state.
    *
    * @param dt The elapsed time since the last update, in seconds.
    * @return The new state after the update.
@@ -93,9 +96,9 @@ class MotionProfileFollower {
   }
 
  private:
-  MotionProfile<Distance> m_profile;
+  MotionProfile<Distance>& m_profile;
   State m_currentState;
   State m_goalState;
 };
 
-}  // namespace frc 
+}  // namespace frc
